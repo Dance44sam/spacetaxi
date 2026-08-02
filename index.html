@@ -79,51 +79,6 @@
     background: rgba(10,15,35,0.75); color: #ffe27a; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
     font-weight: bold; font-size: 16px; display: none; align-items: center; justify-content: center;
   }
-  #chatPanel {
-    position: fixed; left: 12px; bottom: 12px; width: min(340px, calc(100vw - 24px));
-    max-height: min(38vh, 320px); z-index: 14; display: flex; flex-direction: column;
-    background: rgba(7, 12, 24, 0.9); border: 1px solid rgba(140,180,255,0.35);
-    border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-    backdrop-filter: blur(8px); font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
-  }
-  #chatHeader {
-    padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;
-    color: #ffe27a; font-size: 12px; font-weight: bold; letter-spacing: 0.5px;
-    border-bottom: 1px solid rgba(140,180,255,0.2);
-  }
-  #chatMessages {
-    flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;
-  }
-  .chatMessage {
-    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
-    padding: 7px 8px; color: #f0f5ff;
-  }
-  .chatMessage.system {
-    background: rgba(255,226,122,0.12); border-color: rgba(255,226,122,0.25);
-  }
-  .chatMessage .chatMeta {
-    font-size: 10px; color: #8fd0ff; margin-bottom: 3px; display: block;
-  }
-  .chatMessage .chatText {
-    font-size: 13px; line-height: 1.35; white-space: pre-wrap; word-break: break-word;
-  }
-  .chatEmpty {
-    color: rgba(255,255,255,0.62); font-size: 12px; padding: 8px 2px;
-  }
-  #chatComposer {
-    display: flex; gap: 8px; padding: 10px; border-top: 1px solid rgba(140,180,255,0.2);
-  }
-  #chatInput {
-    flex: 1; border: none; border-radius: 999px; padding: 9px 12px; background: rgba(255,255,255,0.12);
-    color: #fff; outline: none; font-family: inherit; font-size: 13px;
-  }
-  #chatSend {
-    border: none; border-radius: 999px; padding: 9px 12px; background: #ffe27a; color: #07101f;
-    font-weight: bold; font-family: inherit; cursor: pointer;
-  }
-  #chatHint {
-    padding: 0 12px 10px; font-size: 10px; color: rgba(255,255,255,0.62);
-  }
 
   /* ---- Mobile control layout: two independent thumb zones so both
      can be held down simultaneously (separate pointers, separate zones) ---- */
@@ -202,7 +157,6 @@
       padding: 7px 10px;
       font-size: 11px;
     }
-    #chatPanel { left: 10px; right: 10px; width: auto; bottom: 140px; max-height: 28vh; }
   }
   @media (max-width: 600px) {
     .controlButton { width: 50px; height: 50px; font-size: 20px; }
@@ -242,18 +196,6 @@
 </div>
 <button id="multiplayerToggle" type="button" aria-pressed="false"><span class="dot"></span> Multiplayer: Off</button>
 <button id="helpToggle">?</button>
-<div id="chatPanel">
-  <div id="chatHeader">
-    <span>🗨️ Taxi Chat</span>
-    <span id="chatStatus">Local sync</span>
-  </div>
-  <div id="chatMessages"></div>
-  <div id="chatComposer">
-    <input id="chatInput" maxlength="180" placeholder="Say hi to other pilots..." />
-    <button id="chatSend" type="button">Send</button>
-  </div>
-  <div id="chatHint">Press Enter to send • /nick YourName changes your name</div>
-</div>
 <div id="zoomControls">
   <button class="zoomButton" id="zoomInBtn">+</button>
   <button class="zoomButton" id="zoomOutBtn">−</button>
@@ -281,149 +223,6 @@
   const ctx = canvas.getContext('2d');
   const minimap = document.getElementById('minimap');
   const mmCtx = minimap.getContext('2d');
-  const chatMessagesEl = document.getElementById('chatMessages');
-  const chatInputEl = document.getElementById('chatInput');
-  const chatSendEl = document.getElementById('chatSend');
-  const chatStatusEl = document.getElementById('chatStatus');
-  const chatState = {
-    nick: localStorage.getItem('tinyPlanetsChatNick') || '',
-    messages: [],
-    channel: null,
-    storageKey: 'tinyPlanetsChatMessages',
-    nickKey: 'tinyPlanetsChatNick',
-    syncKey: 'tinyPlanetsChatSync'
-  };
-
-  function escapeHtml(text) {
-    return String(text)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  function makeNick() {
-    const names = ['Nova', 'Jett', 'Mira', 'Pip', 'Rook', 'Ari', 'Lune', 'Kade', 'Zoe', 'Rio'];
-    return names[Math.floor(Math.random() * names.length)] + Math.floor(Math.random() * 90 + 10);
-  }
-
-  function setNick(name) {
-    const next = (name || '').trim().slice(0, 16) || makeNick();
-    chatState.nick = next;
-    localStorage.setItem(chatState.nickKey, chatState.nick);
-    chatStatusEl.textContent = `${chatState.nick}`;
-  }
-
-  function loadSavedMessages() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(chatState.storageKey) || '[]');
-      chatState.messages = Array.isArray(saved) ? saved.slice(-80) : [];
-    } catch (e) {
-      chatState.messages = [];
-    }
-  }
-
-  function renderChat() {
-    if (!chatMessagesEl) return;
-    if (!chatState.messages.length) {
-      chatMessagesEl.innerHTML = '<div class="chatEmpty">No messages yet — be the first to say hello.</div>';
-      return;
-    }
-    chatMessagesEl.innerHTML = chatState.messages.map(msg => {
-      const ts = new Date(msg.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-      if (msg.type === 'system') {
-        return `<div class="chatMessage system"><span class="chatMeta">system • ${ts}</span><div class="chatText">${escapeHtml(msg.text)}</div></div>`;
-      }
-      return `<div class="chatMessage"><span class="chatMeta">${escapeHtml(msg.name)} • ${ts}</span><div class="chatText">${escapeHtml(msg.text)}</div></div>`;
-    }).join('');
-    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-  }
-
-  function persistMessages() {
-    localStorage.setItem(chatState.storageKey, JSON.stringify(chatState.messages));
-  }
-
-  function addLocalMessage(payload, persist = true) {
-    const entry = { ...payload, ts: payload.ts || Date.now() };
-    chatState.messages.push(entry);
-    chatState.messages = chatState.messages.slice(-80);
-    if (persist) persistMessages();
-    renderChat();
-  }
-
-  function broadcastChatPayload(payload) {
-    if (chatState.channel) {
-      chatState.channel.postMessage(payload);
-    }
-    localStorage.setItem(chatState.syncKey, JSON.stringify(payload));
-  }
-
-  function handleIncomingChat(payload) {
-    if (!payload || !payload.type) return;
-    if (payload.type !== 'message' && payload.type !== 'system') return;
-    addLocalMessage(payload, false);
-  }
-
-  function sendChatMessage(text) {
-    const value = (text || '').trim();
-    if (!value) return;
-
-    if (value.startsWith('/nick ')) {
-      const nextName = value.slice(6).trim();
-      if (nextName) {
-        setNick(nextName);
-        const systemPayload = { type: 'system', text: `Your name is now ${chatState.nick}`, ts: Date.now() };
-        addLocalMessage(systemPayload, true);
-        broadcastChatPayload(systemPayload);
-      }
-      chatInputEl.value = '';
-      return;
-    }
-
-    const payload = { type: 'message', name: chatState.nick, text: value, ts: Date.now() };
-    addLocalMessage(payload, true);
-    broadcastChatPayload(payload);
-    chatInputEl.value = '';
-  }
-
-  function initChat() {
-    if (!chatMessagesEl || !chatInputEl || !chatSendEl || !chatStatusEl) return;
-    setNick(chatState.nick || makeNick());
-    loadSavedMessages();
-    renderChat();
-
-    if (!chatState.messages.length) {
-      const welcome = { type: 'system', text: 'Welcome to Taxi Chat — use /nick YourName to change your name.', ts: Date.now() };
-      addLocalMessage(welcome, true);
-    }
-
-    try {
-      chatState.channel = new BroadcastChannel('tinyPlanetsTaxiChat');
-      chatState.channel.addEventListener('message', e => handleIncomingChat(e.data));
-    } catch (e) {
-      chatState.channel = null;
-    }
-
-    window.addEventListener('storage', e => {
-      if (e.key === chatState.syncKey && e.newValue) {
-        try {
-          handleIncomingChat(JSON.parse(e.newValue));
-        } catch (err) {}
-      }
-    });
-
-    chatInputEl.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        sendChatMessage(chatInputEl.value);
-      }
-    });
-
-    chatSendEl.addEventListener('click', () => sendChatMessage(chatInputEl.value));
-  }
-
-  initChat();
 
   function resize() {
     canvas.width = window.innerWidth;
