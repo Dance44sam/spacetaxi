@@ -117,10 +117,24 @@
     font-size: 11px; margin-top: 2px; user-select: none;
   }
 
+  /* ---- Mobile zoom controls: vertical +/- pair, top-right under helpToggle ---- */
+  #zoomControls {
+    position: fixed; top: 54px; right: 10px; z-index: 7; pointer-events: none;
+    display: none; flex-direction: column; gap: 8px;
+  }
+  .zoomButton {
+    width: 40px; height: 40px; border-radius: 12px; border: 2px solid rgba(140,180,255,0.5);
+    background: rgba(10,15,35,0.75); color: #eef4ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
+    font-weight: bold; font-size: 20px; display: flex; align-items: center; justify-content: center;
+    pointer-events: auto; touch-action: none; user-select: none; transition: transform 0.1s ease, background 0.15s;
+  }
+  .zoomButton.active { transform: scale(0.92); background: rgba(140,180,255,0.35); }
+
   @media (max-width: 900px) {
     #hud { font-size: 13px; padding: 10px 14px; max-width: 92vw; }
     #legend { display: none; }
     #helpToggle { display: flex; }
+    #zoomControls { display: flex; }
     #minimap { width: 120px; height: 120px; bottom: 200px; right: 12px; }
     #mobileControls { display: block; }
     #startScreen p { max-width: 90vw; }
@@ -145,7 +159,7 @@
   <b>S / Down Arrow</b> — back up &nbsp;•&nbsp; <b>Shift</b> — hold for a big boost (works together with thrust!)<br>
   <b>Scroll</b> — zoom the camera in and out<br>
   <b>R</b> — start a fresh shift any time, no worries!<br><br>
-  On phone/tablet: use the <b>left thumb pad</b> to steer and thrust, and the <b>orange boost button</b> on the right — you can hold both down at once!<br>
+  On phone/tablet: use the <b>left thumb pad</b> to steer and thrust, and the <b>orange boost button</b> on the right — you can hold both down at once! Pinch with two fingers, or use the <b>+ / −</b> buttons in the top right, to zoom the camera.<br>
   Your little taxi has gentle engines, so hold <b>Shift/Boost</b> to blast off a planet's surface.<br>
   Flying low through a planet's clouds slows you down a bit — that's the air pushing back!<br>
   Your flight path shows as a soft yellow dotted line, so you always know where you're headed.<br>
@@ -164,6 +178,12 @@
   <span style="color:#c98aa8">●</span> Ferrugo &nbsp; <span style="color:#8fc97a">●</span> Musco
 </div>
 <button id="helpToggle">?</button>
+<div id="zoomControls">
+  <button class="zoomButton" id="zoomInBtn">+</button>
+  <button class="zoomButton" id="zoomOutBtn">−</button>
+  <button class="zoomButton" id="timeWarpOutBtn">⏪</button>
+  <button class="zoomButton" id="timeWarpInBtn">⏩</button>
+</div>
 <canvas id="minimap"></canvas>
 
 <div id="mobileControls">
@@ -201,13 +221,13 @@
   const DISTANCE_SCALE = 3.0;
   const G = 0.35;
   let timeScale = 1;
-  const TIME_SCALE_STEP = 0.25;
+  const TIMEWARP_STEPS = [0.5, 1, 2, 4, 5, 8, 12];
   const MIN_TIME_SCALE = 0.5;
-  const MAX_TIME_SCALE = 4;
+  const MAX_TIME_SCALE = 12;
   const persistedCredits = Number(localStorage.getItem('tinyPlanetsCredits') || 0);
 
   const planets = [
-    { name: "Hearth",      x: 0,      y: 0,      r: 1000, mass: 5.5e8, color: "#c9a86b", atmo: "#8fc2e8", atmoDepth: 520, station: true,  gasStation: true,  craters: 3, rings: false, detailColor: "#a4855a", clouds: true },
+    { name: "Home",      x: 0,      y: 0,      r: 1000, mass: 5.5e8, color: "#c9a86b", atmo: "#8fc2e8", atmoDepth: 520, station: true,  gasStation: true,  craters: 5, rings: true, detailColor: "#a4855a", clouds: true },
     { name: "Aequor",      x: 6200,   y: -2600,  r: 650,  mass: 2.6e8, color: "#7fb8d6", atmo: "#8fc0ff", atmoDepth: 420, station: true,  gasStation: false, craters: 2, rings: true,  detailColor: "#eaf3ff", clouds: true },
     { name: "Ferrugo",     x: -5400,  y: 3800,   r: 800,  mass: 3.4e8, color: "#c98aa8", atmo: "#ffa88a", atmoDepth: 380, station: true, gasStation: true,  craters: 5, rings: false, detailColor: "#8a5a70", clouds: true },
     { name: "Musco",       x: 2200,   y: 6800,   r: 450,  mass: 1.4e8, color: "#8fc97a", atmo: "#b8ecA0", atmoDepth: 340, station: true,  gasStation: false, craters: 1, rings: false, detailColor: "#5f9a55", clouds: true },
@@ -237,6 +257,8 @@
     { name: "Scarlet",     x: 3138,   y: -8193,  r: 579,  mass: 1.0e8, color: "#d67a7a", atmo: "#ffa0a0", atmoDepth: 220, station: true,  gasStation: false, craters: 4, rings: false, detailColor: "#914848", clouds: false },
     { name: "Aurum",       x: 2164,   y: -4022,  r: 512,  mass: 1.9e8, color: "#e0b46a", atmo: "#ffd98a", atmoDepth: 240, station: true,  gasStation: true,  craters: 3, rings: false, detailColor: "#ab7f3f", clouds: true },
     { name: "Chloris",     x: 6966,   y: -7544,  r: 328,  mass: 1.6e8, color: "#7ab060", atmo: "#a0e080", atmoDepth: 400, station: true, gasStation: false, craters: 2, rings: false, detailColor: "#4d7a3a", clouds: true },
+    { name: "Mun",     x: 550,   y: 220,  r: 180,  mass: 4.5e7, color: "#d0d0d8", atmo: null, atmoDepth: 0, station: false, gasStation: false, craters: 8, rings: false, detailColor: "#b0b0c0", clouds: false },
+
   ];
 
   for (const p of planets) {
@@ -391,11 +413,13 @@
     }
   }
 
+  // Starfield: expand the spread so the background feels much wider on zoom-out
+  const STAR_FIELD_SIZE = 240000; // total span (width and height)
   const stars = [];
-  for (let i = 0; i < 800; i++) {
+  for (let i = 0; i < 1200; i++) {
     stars.push({
-      x: (Math.random() - 0.5) * 80000,
-      y: (Math.random() - 0.5) * 80000,
+      x: (Math.random() - 0.5) * STAR_FIELD_SIZE,
+      y: (Math.random() - 0.5) * STAR_FIELD_SIZE,
       s: Math.random() * 1.6 + 0.5,
       twinkleSpeed: 0.5 + Math.random() * 2,
       twinklePhase: Math.random() * Math.PI * 2
@@ -403,10 +427,10 @@
   }
   // A few extra big sparkly stars for atmosphere
   const bigStars = [];
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 60; i++) {
     bigStars.push({
-      x: (Math.random() - 0.5) * 80000,
-      y: (Math.random() - 0.5) * 80000,
+      x: (Math.random() - 0.5) * STAR_FIELD_SIZE,
+      y: (Math.random() - 0.5) * STAR_FIELD_SIZE,
       s: Math.random() * 2 + 2,
       twinkleSpeed: 0.3 + Math.random() * 1.2,
       twinklePhase: Math.random() * Math.PI * 2
@@ -423,9 +447,7 @@
     turnSpeed: 2.4,
     fuel: 100,
     maxFuel: 100,
-    fuelBurnRate: 7,
-    hp: 100,
-    maxHp: 100,
+    fuelBurnRate: 4,
     safeLandingSpeed: 260,
     cooked: false,
     landed: false,
@@ -444,26 +466,24 @@
     ship.landed = false;
     ship.trail = [];
     ship.fuel = ship.maxFuel;
-    ship.hp = ship.maxHp;
     ship.cooked = false;
     ship.passengers = [];
     showMsg("New shift started! Ready when you are 🚕", 1.5);
   }
 
   const cam = { x: 0, y: 0, zoom: 0.18 };
+  // Allow zooming out much farther so the starfield can be appreciated
+  const ZOOM_MIN = 0.002, ZOOM_MAX = 1.5;
+  function setZoom(z) {
+    cam.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+  }
 
   const keys = {};
   window.addEventListener('keydown', e => {
     keys[e.code] = true;
     if (e.code === 'KeyR') resetShip();
-    if (e.code === 'BracketRight') {
-      timeScale = Math.min(MAX_TIME_SCALE, timeScale + TIME_SCALE_STEP);
-      showMsg(`Time accel: x${timeScale.toFixed(2)}`, 1.5);
-    }
-    if (e.code === 'BracketLeft') {
-      timeScale = Math.max(MIN_TIME_SCALE, timeScale - TIME_SCALE_STEP);
-      showMsg(`Time accel: x${timeScale.toFixed(2)}`, 1.5);
-    }
+    if (e.code === 'BracketRight') snapTimeScaleUp();
+    if (e.code === 'BracketLeft') snapTimeScaleDown();
     if (e.code === 'KeyT') {
       timeScale = 1;
       showMsg('Time accel reset to normal', 1.5);
@@ -472,9 +492,51 @@
   });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
   window.addEventListener('wheel', e => {
-    cam.zoom *= (e.deltaY > 0) ? 0.9 : 1.1;
-    cam.zoom = Math.max(0.015, Math.min(1.5, cam.zoom));
+    setZoom(cam.zoom * ((e.deltaY > 0) ? 0.9 : 1.1));
   }, { passive: true });
+
+  // ---- Pinch-to-zoom (two-finger touch gesture on the canvas) ----
+  const activeTouches = new Map(); // pointerId -> {x, y}
+  let pinchStartDist = null;
+  let pinchStartZoom = null;
+
+  function touchDistance() {
+    const pts = [...activeTouches.values()];
+    if (pts.length < 2) return null;
+    return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  }
+
+  canvas.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'touch') return;
+    activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (activeTouches.size === 2) {
+      pinchStartDist = touchDistance();
+      pinchStartZoom = cam.zoom;
+    }
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'touch') return;
+    if (!activeTouches.has(e.pointerId)) return;
+    activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (activeTouches.size === 2 && pinchStartDist) {
+      const dist = touchDistance();
+      if (dist) {
+        setZoom(pinchStartZoom * (dist / pinchStartDist));
+      }
+      e.preventDefault();
+    }
+  }, { passive: false });
+  function endTouch(e) {
+    if (e.pointerType !== 'touch') return;
+    activeTouches.delete(e.pointerId);
+    if (activeTouches.size < 2) {
+      pinchStartDist = null;
+      pinchStartZoom = null;
+    }
+  }
+  canvas.addEventListener('pointerup', endTouch);
+  canvas.addEventListener('pointercancel', endTouch);
+  canvas.addEventListener('pointerleave', endTouch);
 
   const startScreen = document.getElementById('startScreen');
   let started = false;
@@ -487,6 +549,77 @@
   helpToggle.addEventListener('click', () => {
     startScreen.style.display = 'flex';
   });
+
+  // ---- Zoom in/out buttons (mobile) ----
+  // Hold-to-repeat: a single tap nudges the zoom once, holding the button
+  // keeps zooming smoothly, similar to the thrust/boost buttons above.
+  const ZOOM_STEP_PER_SEC = 1.6; // multiplicative rate per second while held
+  function setupZoomButton(el, direction) {
+    let held = false;
+    function press(e) {
+      held = true;
+      el.classList.add('active');
+      setZoom(cam.zoom * (direction > 0 ? 1.18 : 0.85));
+      e.preventDefault();
+    }
+    function release() {
+      held = false;
+      el.classList.remove('active');
+    }
+    el.addEventListener('pointerdown', press);
+    el.addEventListener('pointerup', release);
+    el.addEventListener('pointercancel', release);
+    el.addEventListener('pointerleave', release);
+    return () => held;
+  }
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const isZoomInHeld = setupZoomButton(zoomInBtn, 1);
+  const isZoomOutHeld = setupZoomButton(zoomOutBtn, -1);
+
+  // ---- Mobile timewarp buttons ----
+  const timeWarpInBtn = document.getElementById('timeWarpInBtn');
+  const timeWarpOutBtn = document.getElementById('timeWarpOutBtn');
+  let timeWarpOutHoldTimer = 0;
+  const TIMEWARP_REPEAT_INTERVAL = 0.22;
+
+  function snapTimeScaleUp() {
+    const next = TIMEWARP_STEPS.find(step => step > timeScale + 1e-6);
+    timeScale = next === undefined ? TIMEWARP_STEPS[TIMEWARP_STEPS.length - 1] : next;
+    showMsg(`Time accel: x${timeScale.toFixed(2)}`, 1.2);
+  }
+
+  function snapTimeScaleDown() {
+    const reversed = [...TIMEWARP_STEPS].reverse();
+    const next = reversed.find(step => step < timeScale - 1e-6);
+    timeScale = next === undefined ? TIMEWARP_STEPS[0] : next;
+    showMsg(`Time accel: x${timeScale.toFixed(2)}`, 1.2);
+  }
+
+  function setupTimeWarpButton(el, direction) {
+    let held = false;
+    function press(e) {
+      held = true;
+      el.classList.add('active');
+      if (direction > 0) {
+        snapTimeScaleUp();
+      } else {
+        snapTimeScaleDown();
+      }
+      e.preventDefault();
+    }
+    function release() {
+      held = false;
+      el.classList.remove('active');
+    }
+    el.addEventListener('pointerdown', press);
+    el.addEventListener('pointerup', release);
+    el.addEventListener('pointercancel', release);
+    el.addEventListener('pointerleave', release);
+    return () => held;
+  }
+  const isTimeWarpInHeld = setupTimeWarpButton(timeWarpInBtn, 1);
+  const isTimeWarpOutHeld = setupTimeWarpButton(timeWarpOutBtn, -1);
 
   // ---- Multi-touch safe control buttons ----
   // Each button independently tracks its OWN pointer id, so holding the boost
@@ -637,7 +770,30 @@
       p.rotation += p.spinSpeed * dt;
     }
 
-    if (!started || ship.cooked) return;
+    // Hold-to-repeat zoom buttons
+    if (isZoomInHeld()) setZoom(cam.zoom * Math.pow(1 + ZOOM_STEP_PER_SEC, dt));
+    if (isZoomOutHeld()) setZoom(cam.zoom * Math.pow(1 / (1 + ZOOM_STEP_PER_SEC), dt));
+    // Hold-to-repeat timewarp buttons
+    if (isTimeWarpInHeld()) {
+      timeWarpInHoldTimer += dt;
+      if (timeWarpInHoldTimer >= TIMEWARP_REPEAT_INTERVAL) {
+        snapTimeScaleUp();
+        timeWarpInHoldTimer = 0;
+      }
+    } else {
+      timeWarpInHoldTimer = 0;
+    }
+    if (isTimeWarpOutHeld()) {
+      timeWarpOutHoldTimer += dt;
+      if (timeWarpOutHoldTimer >= TIMEWARP_REPEAT_INTERVAL) {
+        snapTimeScaleDown();
+        timeWarpOutHoldTimer = 0;
+      }
+    } else {
+      timeWarpOutHoldTimer = 0;
+    }
+
+    if (!started) return;
 
     if (keys['KeyA'] || keys['ArrowLeft']) ship.angle -= ship.turnSpeed * dt;
     if (keys['KeyD'] || keys['ArrowRight']) ship.angle += ship.turnSpeed * dt;
@@ -664,7 +820,7 @@
     ship.fuel = Math.max(0, Math.min(ship.maxFuel, ship.fuel));
     if (ship.fuel <= 0 && !ship.cooked) {
       ship.cooked = true;
-      showMsg("You're cooked — fuel ran out! Press R to restart", 4);
+      showMsg("Fuel empty — coast to a ⛽ planet to refill.", 3);
     }
     if ((wantThrust || wantReverse) && !hasFuel && !ship.cooked && msgTimer <= 0) {
       showMsg("Tank's empty! Find a ⛽ planet to fill up again", 1.5);
@@ -707,9 +863,8 @@
       const speed = Math.hypot(ship.vx, ship.vy);
       if (speed > ship.safeLandingSpeed) {
         const overSpeed = speed - ship.safeLandingSpeed;
-        const damage = overSpeed * 0.12;
-        ship.hp = Math.max(0, ship.hp - damage);
-        showMsg("Bit of a bounce on " + nearest.name + "! Taxi's still good to go — " + Math.round(ship.hp) + "% ⭐", 2.5);
+        // Bounce/dampen velocity on a hard landing but do not track HP
+        showMsg("Bit of a bounce on " + nearest.name + "! Taxi's still good to go.", 2.5);
         ship.vx *= -0.15; ship.vy *= -0.15;
       } else if (!ship.landed) {
         showMsg("Smooth landing on " + nearest.name + "! 🌟", 2);
@@ -730,6 +885,7 @@
         ship.fuel = Math.min(ship.maxFuel, ship.fuel + refuelRate * dt);
         ship.fueledUpMsgShown = false;
       } else if (nearest.gasStation && ship.fuel >= ship.maxFuel && !ship.fueledUpMsgShown) {
+        ship.cooked = false;
         showMsg("Full tank! Ready to fly ⛽✨", 1.5);
         ship.fueledUpMsgShown = true;
       }
@@ -755,10 +911,9 @@
     const meterTotal = ship.passengers.reduce((sum, pax) => sum + pax.fare, 0);
 
     const fuelPct = Math.round(ship.fuel);
-    const hpPct = Math.round(ship.hp);
     const fuelColor = fuelPct > 40 ? '#7fe0a0' : (fuelPct > 15 ? '#ffd23a' : '#ff6a5a');
     let statusHtml;
-    if (ship.cooked) statusHtml = `<span class="statusBadge statusCooked">🛑 COOKED — press R</span>`;
+    if (ship.cooked && !ship.landed) statusHtml = `<span class="statusBadge statusCooked">⛽ EMPTY TANK — coast to a station</span>`;
     else if (ship.landed) statusHtml = `<span class="statusBadge statusParked">🛬 PARKED</span>`;
     else statusHtml = `<span class="statusBadge statusFlying">🌠 FLYING</span>`;
 
@@ -766,7 +921,6 @@
       `🚕 Space Taxi — Nearest world: <b>${nearest.name}</b> &nbsp; ${statusHtml}<br>` +
       `🚀 Speed: ${speed.toFixed(0)}<br>` +
       `⛽ Fuel: ${fuelPct}%<span class="fuelBarWrap"><span class="fuelBarFill" style="width:${fuelPct}%; background:${fuelColor};"></span></span><br>` +
-      `❤️ Ship health: ${hpPct}%<span class="hpBarWrap"><span class="hpBarFill" style="width:${hpPct}%;"></span></span><br>` +
       `🧑‍🚀 Riders: ${ship.passengers.length}/${ship.maxSeats} — heading to: ${paxList}<br>` +
       `🪙 On the meter: ${meterTotal} &nbsp; | &nbsp; 💰 Total earned: ${ship.credits}<br>` +
       `⏱️ Time accel: x${timeScale.toFixed(2)}`;
