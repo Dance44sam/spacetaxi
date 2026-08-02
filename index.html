@@ -529,7 +529,6 @@
   }
 
   const multiplayerState = { enabled: false, ghosts: [] };
-  const multiplayerNames = ['Mina', 'Jules', 'Kai', 'Rin', 'Tavi', 'Noa', 'Pax', 'Lio', 'Sol', 'Miko', 'Nico', 'Zed'];
   function buildMultiplayerGhosts() {
     multiplayerState.ghosts = [];
     const count = 10;
@@ -539,7 +538,7 @@
       const angle = Math.random() * Math.PI * 2;
       const speed = (0.3 + Math.random() * 0.5) * (Math.random() > 0.5 ? 1 : -1);
       multiplayerState.ghosts.push({
-        name: multiplayerNames[i % multiplayerNames.length],
+        name: `Player ${i + 1}`,
         planet,
         orbitRadius,
         angle,
@@ -1471,13 +1470,20 @@
       ctx.arc(s.x, s.y, size * 0.55, 0, Math.PI * 2);
       ctx.stroke();
       if (cam.zoom > 0.05) {
+        const labelText = `${ghost.name} • ${ghost.x.toFixed(1)}, ${ghost.y.toFixed(1)}`;
         ctx.font = 'bold 11px "Comic Sans MS", "Trebuchet MS", sans-serif';
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        const textWidth = ctx.measureText(labelText).width;
+        const boxX = s.x - textWidth / 2 - 6;
+        const boxY = s.y - size - 18;
+        ctx.fillStyle = 'rgba(4, 8, 16, 0.78)';
+        ctx.fillRect(boxX, boxY, textWidth + 12, 18);
         ctx.lineWidth = 3;
         ctx.strokeStyle = 'rgba(5,8,18,0.7)';
-        ctx.strokeText(ghost.name, s.x, s.y - size - 6);
+        ctx.strokeText(labelText, s.x, s.y - size - 8);
         ctx.fillStyle = '#eef4ff';
-        ctx.fillText(ghost.name, s.x, s.y - size - 6);
+        ctx.fillText(labelText, s.x, s.y - size - 8);
       }
     }
   }
