@@ -65,6 +65,14 @@
     font-size: 12px; background: rgba(10,15,35,0.6); padding: 10px 14px; border-radius: 14px;
     line-height: 1.8; pointer-events: none; user-select: none; border: 2px solid rgba(140,180,255,0.35);
   }
+  #multiplayerToggle {
+    position: fixed; top: 130px; right: 56px; z-index: 7; pointer-events: auto;
+    padding: 8px 12px; border-radius: 999px; border: 2px solid rgba(140,180,255,0.5);
+    background: rgba(10,15,35,0.75); color: #eef4ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
+    font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 7px;
+  }
+  #multiplayerToggle.active { background: rgba(83,146,255,0.35); color: #fff; border-color: rgba(255,220,140,0.6); }
+  #multiplayerToggle .dot { width: 8px; height: 8px; border-radius: 50%; background: #7fe0a0; box-shadow: 0 0 8px rgba(127,224,160,0.8); }
   #helpToggle {
     position: fixed; top: 10px; right: 10px; z-index: 7; pointer-events: auto;
     width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(140,180,255,0.5);
@@ -140,6 +148,15 @@
     #startScreen p { max-width: 90vw; }
     #startScreen .go { width: auto; padding: 12px 24px; }
     #msg { bottom: 200px; }
+    #multiplayerToggle {
+      top: auto;
+      right: auto;
+      left: 10px;
+      bottom: 700px;
+      z-index: 13;
+      padding: 7px 10px;
+      font-size: 11px;
+    }
   }
   @media (max-width: 600px) {
     .controlButton { width: 50px; height: 50px; font-size: 20px; }
@@ -177,6 +194,7 @@
   <span style="color:#c9a86b">●</span> Hearth &nbsp; <span style="color:#7fb8d6">●</span> Aequor<br>
   <span style="color:#c98aa8">●</span> Ferrugo &nbsp; <span style="color:#8fc97a">●</span> Musco
 </div>
+<button id="multiplayerToggle" type="button" aria-pressed="false"><span class="dot"></span> Multiplayer: Off</button>
 <button id="helpToggle">?</button>
 <div id="zoomControls">
   <button class="zoomButton" id="zoomInBtn">+</button>
@@ -218,12 +236,12 @@
   // can be escaped with a boosted thrust, and most can be escaped with plain
   // thrust too — no world should ever feel impossible to leave.
   const MASS_FACTOR = 0.09;
-  const DISTANCE_SCALE = 3.0;
+  const DISTANCE_SCALE = 4.0;
   const G = 0.35;
   let timeScale = 1;
-  const TIMEWARP_STEPS = [0.5, 1, 2, 4, 5, 8, 12];
+  const TIMEWARP_STEPS = [0.5, 1, 2, 4, 5, 8, 12, 24];
   const MIN_TIME_SCALE = 0.5;
-  const MAX_TIME_SCALE = 12;
+  const MAX_TIME_SCALE = 24;
   const persistedCredits = Number(localStorage.getItem('tinyPlanetsCredits') || 0);
 
   const planets = [
@@ -257,7 +275,7 @@
     { name: "Scarlet",     x: 3138,   y: -8193,  r: 579,  mass: 1.0e8, color: "#d67a7a", atmo: "#ffa0a0", atmoDepth: 220, station: true,  gasStation: false, craters: 4, rings: false, detailColor: "#914848", clouds: false },
     { name: "Aurum",       x: 2164,   y: -4022,  r: 512,  mass: 1.9e8, color: "#e0b46a", atmo: "#ffd98a", atmoDepth: 240, station: true,  gasStation: true,  craters: 3, rings: false, detailColor: "#ab7f3f", clouds: true },
     { name: "Chloris",     x: 6966,   y: -7544,  r: 328,  mass: 1.6e8, color: "#7ab060", atmo: "#a0e080", atmoDepth: 400, station: true, gasStation: false, craters: 2, rings: false, detailColor: "#4d7a3a", clouds: true },
-    { name: "Mun",     x: 550,   y: 220,  r: 180,  mass: 4.5e7, color: "#d0d0d8", atmo: null, atmoDepth: 0, station: false, gasStation: false, craters: 8, rings: false, detailColor: "#b0b0c0", clouds: false },
+    { name: "Mun",     x: 1000,   y: 220,  r: 180,  mass: 4.5e7, color: "#d0d0d8", atmo: null, atmoDepth: 0, station: true, gasStation: true, craters: 8, rings: false, detailColor: "#b0b0c0", clouds: false },
 
   ];
 
@@ -317,6 +335,31 @@
       }
     }
   }
+
+  const multiplayerState = { enabled: false, ghosts: [] };
+  const multiplayerNames = ['Mina', 'Jules', 'Kai', 'Rin', 'Tavi', 'Noa', 'Pax', 'Lio', 'Sol', 'Miko', 'Nico', 'Zed'];
+  function buildMultiplayerGhosts() {
+    multiplayerState.ghosts = [];
+    const count = 10;
+    for (let i = 0; i < count; i++) {
+      const planet = planets[Math.floor(Math.random() * planets.length)];
+      const orbitRadius = planet.r * (1.3 + Math.random() * 0.9);
+      const angle = Math.random() * Math.PI * 2;
+      const speed = (0.3 + Math.random() * 0.5) * (Math.random() > 0.5 ? 1 : -1);
+      multiplayerState.ghosts.push({
+        name: multiplayerNames[i % multiplayerNames.length],
+        planet,
+        orbitRadius,
+        angle,
+        speed,
+        bob: Math.random() * Math.PI * 2,
+        color: ['#91e2ff', '#ffb86b', '#c8a0ff', '#ff8fa4', '#7fe0a0', '#ffe07a'][i % 6],
+        x: planet.x + Math.cos(angle) * orbitRadius,
+        y: planet.y + Math.sin(angle) * orbitRadius
+      });
+    }
+  }
+  buildMultiplayerGhosts();
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const p of planets) {
@@ -447,7 +490,7 @@
     turnSpeed: 2.4,
     fuel: 100,
     maxFuel: 100,
-    fuelBurnRate: 4,
+    fuelBurnRate: 1.5,
     safeLandingSpeed: 260,
     cooked: false,
     landed: false,
@@ -482,6 +525,10 @@
   window.addEventListener('keydown', e => {
     keys[e.code] = true;
     if (e.code === 'KeyR') resetShip();
+    if (e.code === 'KeyM') {
+      setMultiplayerEnabled(!multiplayerState.enabled, true);
+      e.preventDefault();
+    }
     if (e.code === 'BracketRight') snapTimeScaleUp();
     if (e.code === 'BracketLeft') snapTimeScaleDown();
     if (e.code === 'KeyT') {
@@ -654,12 +701,24 @@
   });
 
   const msgEl = document.getElementById('msg');
+  const multiplayerToggleEl = document.getElementById('multiplayerToggle');
   let msgTimer = 0;
   function showMsg(text, t) {
     msgEl.textContent = text;
     msgEl.style.opacity = 1;
     msgTimer = t;
   }
+  function setMultiplayerEnabled(enabled, showMessage = true) {
+    multiplayerState.enabled = enabled;
+    multiplayerToggleEl.classList.toggle('active', enabled);
+    multiplayerToggleEl.setAttribute('aria-pressed', String(enabled));
+    multiplayerToggleEl.innerHTML = `<span class="dot"></span>${enabled ? 'Multiplayer: On' : 'Multiplayer: Off'}`;
+    if (showMessage) {
+      showMsg(enabled ? 'Multiplayer mode enabled — other taxis are visible' : 'Multiplayer mode disabled', 1.4);
+    }
+  }
+  multiplayerToggleEl.addEventListener('click', () => setMultiplayerEnabled(!multiplayerState.enabled, true));
+  setMultiplayerEnabled(false, false);
 
   function findNearestPlanet() {
     let best = null, bestDist = Infinity;
@@ -752,6 +811,16 @@
     mmCtx.arc(shipPos.x, shipPos.y, 3, 0, Math.PI * 2);
     mmCtx.fill();
 
+    if (multiplayerState.enabled) {
+      for (const ghost of multiplayerState.ghosts) {
+        const pos = worldToMM(ghost.x, ghost.y);
+        mmCtx.fillStyle = ghost.color;
+        mmCtx.beginPath();
+        mmCtx.arc(pos.x, pos.y, 2.2, 0, Math.PI * 2);
+        mmCtx.fill();
+      }
+    }
+
     const viewW = canvas.width / cam.zoom;
     const viewH = canvas.height / cam.zoom;
     const viewX = cam.x - viewW / 2;
@@ -791,6 +860,16 @@
       }
     } else {
       timeWarpOutHoldTimer = 0;
+    }
+
+    if (multiplayerState.enabled) {
+      for (const ghost of multiplayerState.ghosts) {
+        ghost.angle += ghost.speed * dt;
+        const wobble = Math.sin(ghost.bob + ghost.angle * 0.9) * 18;
+        ghost.x = ghost.planet.x + Math.cos(ghost.angle) * (ghost.orbitRadius + wobble * 0.1);
+        ghost.y = ghost.planet.y + Math.sin(ghost.angle) * (ghost.orbitRadius + wobble * 0.1);
+        ghost.bob += dt * 0.8;
+      }
     }
 
     if (!started) return;
@@ -923,6 +1002,7 @@
       `⛽ Fuel: ${fuelPct}%<span class="fuelBarWrap"><span class="fuelBarFill" style="width:${fuelPct}%; background:${fuelColor};"></span></span><br>` +
       `🧑‍🚀 Riders: ${ship.passengers.length}/${ship.maxSeats} — heading to: ${paxList}<br>` +
       `🪙 On the meter: ${meterTotal} &nbsp; | &nbsp; 💰 Total earned: ${ship.credits}<br>` +
+      `🌐 ${multiplayerState.enabled ? 'Multiplayer: on' : 'Multiplayer: off'}<br>` +
       `⏱️ Time accel: x${timeScale.toFixed(2)}`;
   }
 
@@ -1145,6 +1225,7 @@
 
     drawTrailAndOrbit();
     drawWalkers();
+    drawMultiplayerGhosts();
     drawShip();
   }
 
@@ -1180,6 +1261,32 @@
       ctx.beginPath();
       ctx.arc(s.x, s.y + bob - 5, 1, 0, Math.PI * 2);
       ctx.fill();
+    }
+  }
+
+  function drawMultiplayerGhosts() {
+    if (!multiplayerState.enabled) return;
+    for (const ghost of multiplayerState.ghosts) {
+      const s = worldToScreen(ghost.x, ghost.y);
+      const size = Math.max(4.2, 8 * Math.min(1, cam.zoom * 2.2));
+      ctx.fillStyle = ghost.color;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, size * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, size * 0.55, 0, Math.PI * 2);
+      ctx.stroke();
+      if (cam.zoom > 0.05) {
+        ctx.font = 'bold 11px "Comic Sans MS", "Trebuchet MS", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(5,8,18,0.7)';
+        ctx.strokeText(ghost.name, s.x, s.y - size - 6);
+        ctx.fillStyle = '#eef4ff';
+        ctx.fillText(ghost.name, s.x, s.y - size - 6);
+      }
     }
   }
 
