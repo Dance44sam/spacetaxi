@@ -1055,11 +1055,7 @@
 
     if (multiplayerState.enabled) {
       for (const ghost of multiplayerState.ghosts) {
-        ghost.angle += ghost.speed * dt;
-        const wobble = Math.sin(ghost.bob + ghost.angle * 0.9) * 18;
-        ghost.x = ghost.planet.x + Math.cos(ghost.angle) * (ghost.orbitRadius + wobble * 0.1);
-        ghost.y = ghost.planet.y + Math.sin(ghost.angle) * (ghost.orbitRadius + wobble * 0.1);
-        ghost.bob += dt * 0.8;
+        // Keep multiplayer markers fixed in place instead of making them orbit planets.
       }
     }
 
