@@ -532,21 +532,18 @@
   function buildMultiplayerGhosts() {
     multiplayerState.ghosts = [];
     const count = 10;
+    const centerX = ship.x;
+    const centerY = ship.y;
     for (let i = 0; i < count; i++) {
-      const planet = planets[Math.floor(Math.random() * planets.length)];
-      const orbitRadius = planet.r * (1.3 + Math.random() * 0.9);
-      const angle = Math.random() * Math.PI * 2;
-      const speed = (0.3 + Math.random() * 0.5) * (Math.random() > 0.5 ? 1 : -1);
+      const angle = (i / count) * Math.PI * 2 + Math.random() * 0.7;
+      const radius = 70 + Math.random() * 140;
       multiplayerState.ghosts.push({
         name: `Player ${i + 1}`,
-        planet,
-        orbitRadius,
-        angle,
-        speed,
-        bob: Math.random() * Math.PI * 2,
         color: ['#91e2ff', '#ffb86b', '#c8a0ff', '#ff8fa4', '#7fe0a0', '#ffe07a'][i % 6],
-        x: planet.x + Math.cos(angle) * orbitRadius,
-        y: planet.y + Math.sin(angle) * orbitRadius
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius,
+        offsetAngle: angle,
+        offsetRadius: radius
       });
     }
   }
@@ -909,7 +906,7 @@
     }
   }
   multiplayerToggleEl.addEventListener('click', () => setMultiplayerEnabled(!multiplayerState.enabled, true));
-  setMultiplayerEnabled(false, false);
+  setMultiplayerEnabled(true, false);
 
   function findNearestPlanet() {
     let best = null, bestDist = Infinity;
