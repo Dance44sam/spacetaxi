@@ -5,6 +5,87 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Tiny Planets Taxi — Orbit Sim (30 Worlds)</title>
 <style>
+  /* ===== Main Menu ===== */
+  #mainMenu {
+    position: fixed; inset: 0; z-index: 20;
+    background: radial-gradient(ellipse at 50% 30%, #141d38 0%, #05070c 70%);
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    color: #e8f0ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
+    text-align: center; overflow-y: auto; padding: 24px 16px; box-sizing: border-box;
+  }
+  #mainMenu.hidden { display: none; }
+  #mainMenu h1 {
+    color: #ffe27a; font-weight: bold; letter-spacing: 3px; font-size: 40px; margin: 0 0 4px;
+    text-shadow: 0 0 20px rgba(255,220,120,0.6), 0 2px 4px rgba(0,0,0,0.5);
+  }
+  #mainMenu .sub { color: #9ad0ff; font-size: 15px; margin-bottom: 28px; }
+  .menuPanel {
+    background: rgba(12,18,36,0.7); border: 2px solid rgba(140,180,255,0.3);
+    border-radius: 20px; padding: 22px 26px; width: min(420px, 90vw); box-sizing: border-box;
+    margin-bottom: 16px;
+  }
+  .menuBigBtn {
+    display: block; width: 100%; box-sizing: border-box; padding: 14px 18px; margin-bottom: 12px;
+    border-radius: 16px; border: 2px solid rgba(255,220,140,0.4); cursor: pointer;
+    background: rgba(255,226,122,0.14); color: #ffe8b0; font-family: inherit;
+    font-size: 17px; font-weight: bold; text-align: left; display: flex; align-items: center; gap: 12px;
+    transition: transform 0.12s ease, background 0.15s;
+  }
+  .menuBigBtn:last-child { margin-bottom: 0; }
+  .menuBigBtn:active { transform: scale(0.97); }
+  .menuBigBtn:hover { background: rgba(255,226,122,0.26); }
+  .menuBigBtn .icon { font-size: 24px; flex-shrink: 0; }
+  .menuBigBtn .txt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+  .menuBigBtn .txt small { font-weight: normal; font-size: 12px; color: #cfe0ff; opacity: 0.85; }
+  .menuBackBtn {
+    background: rgba(140,180,255,0.14); border: 2px solid rgba(140,180,255,0.4); color: #cfe0ff;
+    border-radius: 999px; padding: 8px 18px; font-family: inherit; font-weight: bold; font-size: 13px;
+    cursor: pointer; margin-top: 4px;
+  }
+  .menuField { text-align: left; margin-bottom: 14px; }
+  .menuField label { display: block; font-size: 12px; color: #9ad0ff; margin-bottom: 5px; font-weight: bold; }
+  .menuField input[type="text"], .menuField input[type="password"] {
+    width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: none;
+    background: rgba(255,255,255,0.12); color: #fff; font-family: inherit; font-size: 14px; outline: none;
+  }
+  .menuField .checkRow { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #cfe0ff; }
+  .menuField .checkRow input { width: 16px; height: 16px; }
+  .menuActionBtn {
+    width: 100%; box-sizing: border-box; padding: 12px; border-radius: 14px; border: none; cursor: pointer;
+    background: #ffe27a; color: #05070c; font-family: inherit; font-weight: bold; font-size: 15px;
+    box-shadow: 0 0 16px rgba(255,220,120,0.4); margin-top: 4px;
+  }
+  .menuActionBtn:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
+  .menuStatus { font-size: 13px; color: #9ad0ff; min-height: 18px; margin-top: 10px; }
+  .menuStatus.err { color: #ff9a8a; }
+  .menuStatus.ok { color: #a6f5b4; }
+  .roomListWrap { text-align: left; max-height: 200px; overflow-y: auto; margin-bottom: 14px; }
+  .roomRow {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: rgba(255,255,255,0.06); border-radius: 10px; padding: 9px 12px; margin-bottom: 7px;
+    font-size: 13px;
+  }
+  .roomRow .roomName { font-weight: bold; color: #ffe8b0; display: flex; align-items: center; gap: 6px; }
+  .roomRow .roomMeta { color: #9ad0ff; font-size: 11px; }
+  .roomRow button {
+    border: none; border-radius: 999px; padding: 5px 12px; background: rgba(255,226,122,0.25);
+    color: #ffe8b0; font-family: inherit; font-weight: bold; font-size: 12px; cursor: pointer;
+  }
+  .roomListEmpty { color: rgba(255,255,255,0.5); font-size: 12px; padding: 10px 2px; }
+  .orDivider { display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,0.4); font-size: 11px; margin: 4px 0 14px; }
+  .orDivider::before, .orDivider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.15); }
+  .roomCodeDisplay {
+    background: rgba(255,226,122,0.12); border: 2px dashed rgba(255,220,140,0.5); border-radius: 12px;
+    padding: 14px; margin-bottom: 14px; font-size: 22px; font-weight: bold; letter-spacing: 2px;
+    color: #ffe8b0; text-align: center; user-select: all; cursor: pointer;
+  }
+  .roomCodeDisplay .hint { display: block; font-size: 11px; color: #9ad0ff; font-weight: normal; margin-top: 4px; letter-spacing: 0; }
+  @media (max-width: 600px) {
+    #mainMenu h1 { font-size: 30px; }
+    .menuPanel { padding: 18px 16px; }
+    .menuBigBtn { font-size: 15px; padding: 12px 14px; }
+  }
+</style>
   html, body { margin: 0; padding: 0; overflow: hidden; background: #05070c; height: 100%; touch-action: none; }
   canvas { display: block; touch-action: none; }
   #hud {
@@ -73,6 +154,16 @@
   }
   #multiplayerToggle.active { background: rgba(83,146,255,0.35); color: #fff; border-color: rgba(255,220,140,0.6); }
   #multiplayerToggle .dot { width: 8px; height: 8px; border-radius: 50%; background: #7fe0a0; box-shadow: 0 0 8px rgba(127,224,160,0.8); }
+  #multiplayerToggle.offline .dot { background: #8a94ac; box-shadow: none; }
+  #menuReturnBtn {
+    position: fixed; top: 130px; right: 56px; z-index: 7; pointer-events: auto;
+    padding: 8px 12px; border-radius: 999px; border: 2px solid rgba(140,180,255,0.5);
+    background: rgba(10,15,35,0.75); color: #eef4ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
+    font-weight: bold; font-size: 12px; cursor: pointer;
+  }
+  @media (max-width: 900px) {
+    #menuReturnBtn { top: auto; right: auto; left: 10px; bottom: 660px; }
+  }
   #helpToggle {
     position: fixed; top: 10px; right: 10px; z-index: 7; pointer-events: auto;
     width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(140,180,255,0.5);
@@ -214,7 +305,85 @@
 <base target="_blank">
 </head>
 <body>
-<div id="startScreen">
+<div id="mainMenu">
+  <h1>🚕 TINY PLANETS TAXI 🌍</h1>
+  <div class="sub">30 tiny worlds, one taxi, endless fares</div>
+
+  <!-- ROOT MENU -->
+  <div class="menuPanel" id="menuRoot">
+    <button class="menuBigBtn" id="btnSingleplayer">
+      <span class="icon">🧑‍🚀</span>
+      <span class="txt">Singleplayer<small>Fly solo, no internet needed</small></span>
+    </button>
+    <button class="menuBigBtn" id="btnMultiplayer">
+      <span class="icon">🌐</span>
+      <span class="txt">Multiplayer Servers<small>Join a room with other pilots</small></span>
+    </button>
+    <button class="menuBigBtn" id="btnHost">
+      <span class="icon">🛰️</span>
+      <span class="txt">Host a Server<small>Make a room — no server, just you and friends</small></span>
+    </button>
+  </div>
+
+  <!-- MULTIPLAYER: JOIN -->
+  <div class="menuPanel" id="menuJoin" style="display:none;">
+    <div class="roomListWrap" id="roomListWrap">
+      <div class="roomListEmpty">Looking for public rooms…</div>
+    </div>
+    <div class="orDivider">or enter a room code</div>
+    <div class="menuField">
+      <label for="joinRoomCode">Room Code</label>
+      <input type="text" id="joinRoomCode" placeholder="e.g. sunny-comet-42" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="menuField" id="joinPasswordField" style="display:none;">
+      <label for="joinRoomPassword">Password</label>
+      <input type="password" id="joinRoomPassword" placeholder="Room password" autocomplete="off">
+    </div>
+    <div class="menuField">
+      <label for="joinNickname">Your Pilot Name</label>
+      <input type="text" id="joinNickname" placeholder="Nova42" autocomplete="off" maxlength="16">
+    </div>
+    <button class="menuActionBtn" id="btnDoJoin">Join Room</button>
+    <div class="menuStatus" id="joinStatus"></div>
+    <button class="menuBackBtn" id="btnBackFromJoin">← Back</button>
+  </div>
+
+  <!-- HOST -->
+  <div class="menuPanel" id="menuHost" style="display:none;">
+    <div class="menuField">
+      <label for="hostNickname">Your Pilot Name</label>
+      <input type="text" id="hostNickname" placeholder="Nova42" autocomplete="off" maxlength="16">
+    </div>
+    <div class="menuField">
+      <div class="checkRow">
+        <input type="checkbox" id="hostUsePassword">
+        <label for="hostUsePassword" style="margin:0;">Protect with a password</label>
+      </div>
+    </div>
+    <div class="menuField" id="hostPasswordField" style="display:none;">
+      <label for="hostRoomPassword">Password</label>
+      <input type="password" id="hostRoomPassword" placeholder="Choose a password" autocomplete="off">
+    </div>
+    <div class="menuField">
+      <div class="checkRow">
+        <input type="checkbox" id="hostPublicList" checked>
+        <label for="hostPublicList" style="margin:0;">List this room publicly (others can find it without a code)</label>
+      </div>
+    </div>
+    <button class="menuActionBtn" id="btnDoHost">Create Room</button>
+    <div class="menuStatus" id="hostStatus"></div>
+    <button class="menuBackBtn" id="btnBackFromHost">← Back</button>
+  </div>
+
+  <!-- HOST: ROOM CREATED -->
+  <div class="menuPanel" id="menuHosted" style="display:none;">
+    <div class="roomCodeDisplay" id="hostedRoomCode">sunny-comet-42<span class="hint">Tap to copy • share this so friends can join</span></div>
+    <div class="menuStatus ok" id="hostedStatus">Room open. Waiting for pilots to join…</div>
+    <button class="menuActionBtn" id="btnEnterGameHosted">Fly! 🚀</button>
+  </div>
+</div>
+
+<div id="startScreen" style="display:none;">
   <h1>🚕 TINY PLANETS TAXI 🌍</h1>
   <div class="sub">pick up riders, fly them across the galaxy, earn your fare! 30 worlds to explore!</div>
   <p>
@@ -240,8 +409,9 @@
   <span style="color:#c9a86b">●</span> Hearth &nbsp; <span style="color:#7fb8d6">●</span> Aequor<br>
   <span style="color:#c98aa8">●</span> Ferrugo &nbsp; <span style="color:#8fc97a">●</span> Musco
 </div>
-<button id="multiplayerToggle" type="button" aria-pressed="false"><span class="dot"></span> Multiplayer: Off</button>
+<div id="multiplayerToggle" class="offline"><span class="dot"></span> <span id="multiplayerStatusText">Singleplayer</span></div>
 <button id="helpToggle">?</button>
+<button id="menuReturnBtn" type="button" title="Back to Main Menu">☰ Menu</button>
 <div id="chatPanel">
   <div id="chatHeader">
     <span>🗨️ Taxi Chat</span>
@@ -274,7 +444,413 @@
   </div>
 </div>
 
+<script type="module">
+/* =========================================================================
+   NETWORKING LAYER (Trystero — WebRTC over public BitTorrent trackers)
+   No backend of ours is ever run or paid for. "Hosting a server" really
+   just means: generate a room id, optionally derive it from a password,
+   and open a WebRTC swarm that other browsers can join directly.
+   ========================================================================= */
+import { joinRoom, selfId } from 'https://esm.run/@trystero-p2p/torrent';
+
+const APP_ID = 'tiny-planets-taxi-v1';
+const LOBBY_ROOM_ID = 'tiny-planets-taxi-public-lobby';
+
+const netState = {
+  mode: 'singleplayer',   // 'singleplayer' | 'multiplayer'
+  room: null,
+  roomCode: null,
+  nickname: '',
+  isHost: false,
+  peers: new Map(),       // peerId -> { name, x, y, angle, credits, ts }
+  sendState: null,
+  sendChat: null,
+  sendEconomy: null,
+  lobbyRoom: null,
+  sendLobbyPing: null,
+};
+
+function slugifyRoomCode(input) {
+  return input.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+}
+
+function randomRoomCode() {
+  const adjectives = ['sunny', 'quiet', 'lucky', 'swift', 'bright', 'gentle', 'cosmic', 'silver', 'amber', 'violet'];
+  const nouns = ['comet', 'orbit', 'nebula', 'rocket', 'meteor', 'station', 'voyager', 'harbor', 'signal', 'drift'];
+  const a = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const n = nouns[Math.floor(Math.random() * nouns.length)];
+  const num = Math.floor(10 + Math.random() * 89);
+  return `${a}-${n}-${num}`;
+}
+
+// Simple string hash (djb2) — used only to derive a namespaced room id from
+// a password, so a wrong password lands you in a different, empty swarm
+// rather than the real room. This is the closest "real gate" achievable
+// with no server: the password becomes part of the room's identity.
+function hashString(str) {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function deriveTrysteroRoomId(roomCode, password) {
+  if (password && password.length > 0) {
+    return `${roomCode}__pw_${hashString(password)}`;
+  }
+  return `${roomCode}__nopw`;
+}
+
+function leaveCurrentRoom() {
+  if (netState.room) {
+    try { netState.room.leave(); } catch (e) {}
+    netState.room = null;
+  }
+  netState.peers.clear();
+  netState.sendState = null;
+  netState.sendChat = null;
+  netState.sendEconomy = null;
+  window.__netSendState = null;
+  window.__netSendChat = null;
+  window.__netSendEconomy = null;
+  netState.mode = 'singleplayer';
+}
+
+// Bridge for the classic (non-module) game script below, which cannot use
+// `import`. window.__netState mirrors this module's netState object.
+window.__netState = netState;
+
+function connectToRoom(roomCode, password, nickname, isHost) {
+  leaveCurrentRoom();
+  netState.mode = 'multiplayer';
+  netState.roomCode = roomCode;
+  netState.nickname = nickname;
+  netState.isHost = isHost;
+
+  const trysteroId = deriveTrysteroRoomId(roomCode, password);
+  const room = joinRoom({ appId: APP_ID }, trysteroId);
+  netState.room = room;
+
+  const [sendState, getState] = room.makeAction('state');
+  const [sendChat, getChat] = room.makeAction('chat');
+  const [sendEconomy, getEconomy] = room.makeAction('econ');
+  const [sendJoinInfo, getJoinInfo] = room.makeAction('joininfo');
+  netState.sendState = sendState;
+  netState.sendChat = sendChat;
+  netState.sendEconomy = sendEconomy;
+  window.__netSendState = sendState;
+  window.__netSendChat = sendChat;
+  window.__netSendEconomy = sendEconomy;
+
+  room.onPeerJoin(peerId => {
+    netState.peers.set(peerId, { name: 'Pilot', x: 0, y: 0, angle: 0, credits: 0, ts: performance.now() });
+    sendJoinInfo({ name: netState.nickname });
+    if (typeof window.__onMultiplayerChatSystem === 'function') {
+      window.__onMultiplayerChatSystem(`A pilot connected.`);
+    }
+  });
+
+  room.onPeerLeave(peerId => {
+    const p = netState.peers.get(peerId);
+    netState.peers.delete(peerId);
+    if (typeof window.__onMultiplayerChatSystem === 'function') {
+      window.__onMultiplayerChatSystem(`${p ? p.name : 'A pilot'} disconnected.`);
+    }
+  });
+
+  getJoinInfo((data, peerId) => {
+    const p = netState.peers.get(peerId);
+    if (p && data && data.name) p.name = String(data.name).slice(0, 16);
+  });
+
+  getState((data, peerId) => {
+    const p = netState.peers.get(peerId);
+    if (!p || !data) return;
+    p.x = data.x; p.y = data.y; p.angle = data.angle;
+    p.landed = data.landed; p.cooked = data.cooked;
+    p.ts = performance.now();
+  });
+
+  getChat((data, peerId) => {
+    if (typeof window.__onMultiplayerChatMessage === 'function') {
+      window.__onMultiplayerChatMessage(data, peerId);
+    }
+  });
+
+  getEconomy((data, peerId) => {
+    if (typeof window.__onMultiplayerEconomy === 'function') {
+      window.__onMultiplayerEconomy(data, peerId);
+    }
+  });
+
+  return room;
+}
+
+// ---- Public lobby: a well-known shared room that hosts can optionally
+// announce themselves into, so "Multiplayer Servers" can show a live list
+// without any central list-server. Purely peer-announced, best-effort.
+const publicRoomDirectory = new Map(); // roomCode -> { players, lastSeen, hasPassword }
+
+function connectToLobby() {
+  if (netState.lobbyRoom) return;
+  const lobby = joinRoom({ appId: APP_ID }, LOBBY_ROOM_ID);
+  netState.lobbyRoom = lobby;
+  const [sendPing, getPing] = lobby.makeAction('roomping');
+  netState.sendLobbyPing = sendPing;
+
+  getPing((data, peerId) => {
+    if (!data || !data.roomCode) return;
+    publicRoomDirectory.set(data.roomCode, {
+      players: data.players || 1,
+      lastSeen: performance.now(),
+      hasPassword: !!data.hasPassword
+    });
+    if (typeof window.__onRoomListUpdate === 'function') window.__onRoomListUpdate();
+  });
+
+  lobby.onPeerJoin(() => {
+    if (netState.mode === 'multiplayer' && netState.isHost && netState.roomCode) {
+      announceHostedRoom();
+    }
+  });
+}
+
+let lobbyAnnounceTimer = null;
+function announceHostedRoom() {
+  if (!netState.sendLobbyPing || !netState.roomCode) return;
+  netState.sendLobbyPing({
+    roomCode: netState.roomCode,
+    players: netState.peers.size + 1,
+    hasPassword: !!netState.__hasPassword
+  });
+}
+function startAnnouncing() {
+  connectToLobby();
+  if (lobbyAnnounceTimer) clearInterval(lobbyAnnounceTimer);
+  announceHostedRoom();
+  lobbyAnnounceTimer = setInterval(announceHostedRoom, 4000);
+}
+function stopAnnouncing() {
+  if (lobbyAnnounceTimer) { clearInterval(lobbyAnnounceTimer); lobbyAnnounceTimer = null; }
+}
+
+// Clean stale rooms out of the directory
+setInterval(() => {
+  const now = performance.now();
+  let changed = false;
+  for (const [code, info] of publicRoomDirectory) {
+    if (now - info.lastSeen > 12000) { publicRoomDirectory.delete(code); changed = true; }
+  }
+  if (changed && typeof window.__onRoomListUpdate === 'function') window.__onRoomListUpdate();
+}, 3000);
+
+/* =========================================================================
+   MAIN MENU UI LOGIC
+   ========================================================================= */
+const menuRoot = document.getElementById('menuRoot');
+const menuJoin = document.getElementById('menuJoin');
+const menuHost = document.getElementById('menuHost');
+const menuHosted = document.getElementById('menuHosted');
+const mainMenuEl = document.getElementById('mainMenu');
+const startScreenEl = document.getElementById('startScreen');
+
+function showMenuPanel(panel) {
+  [menuRoot, menuJoin, menuHost, menuHosted].forEach(p => p.style.display = 'none');
+  panel.style.display = 'block';
+}
+
+function savedNickname() {
+  return localStorage.getItem('tinyPlanetsNick') || '';
+}
+function saveNickname(n) {
+  localStorage.setItem('tinyPlanetsNick', n);
+}
+
+document.getElementById('joinNickname').value = savedNickname();
+document.getElementById('hostNickname').value = savedNickname();
+
+document.getElementById('btnSingleplayer').addEventListener('click', () => {
+  netState.mode = 'singleplayer';
+  leaveCurrentRoom();
+  stopAnnouncing();
+  enterGame();
+});
+
+document.getElementById('btnMultiplayer').addEventListener('click', () => {
+  showMenuPanel(menuJoin);
+  connectToLobby();
+  refreshRoomList();
+});
+
+document.getElementById('btnBackFromJoin').addEventListener('click', () => showMenuPanel(menuRoot));
+document.getElementById('btnBackFromHost').addEventListener('click', () => showMenuPanel(menuRoot));
+
+document.getElementById('btnHost').addEventListener('click', () => {
+  showMenuPanel(menuHost);
+});
+
+document.getElementById('hostUsePassword').addEventListener('change', e => {
+  document.getElementById('hostPasswordField').style.display = e.target.checked ? 'block' : 'none';
+});
+
+document.getElementById('joinRoomCode').addEventListener('input', () => {
+  // Best-effort: if this code is a known public room requiring a password, reveal the field.
+  const code = slugifyRoomCode(document.getElementById('joinRoomCode').value);
+  const info = publicRoomDirectory.get(code);
+  document.getElementById('joinPasswordField').style.display = (info && info.hasPassword) ? 'block' : 'none';
+});
+
+function refreshRoomList() {
+  const wrap = document.getElementById('roomListWrap');
+  if (publicRoomDirectory.size === 0) {
+    wrap.innerHTML = '<div class="roomListEmpty">No public rooms found yet — they may take a few seconds to appear, or ask a friend for their room code.</div>';
+    return;
+  }
+  const rows = [...publicRoomDirectory.entries()].sort((a, b) => b[1].lastSeen - a[1].lastSeen);
+  wrap.innerHTML = rows.map(([code, info]) => `
+    <div class="roomRow">
+      <div>
+        <div class="roomName">${info.hasPassword ? '🔒' : '🌐'} ${escapeHtmlMenu(code)}</div>
+        <div class="roomMeta">${info.players} pilot${info.players === 1 ? '' : 's'} online</div>
+      </div>
+      <button data-room="${escapeHtmlMenu(code)}" data-haspw="${info.hasPassword}">Join</button>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('button[data-room]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('joinRoomCode').value = btn.dataset.room;
+      document.getElementById('joinPasswordField').style.display = (btn.dataset.haspw === 'true') ? 'block' : 'none';
+      document.getElementById('joinRoomCode').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  });
+}
+window.__onRoomListUpdate = refreshRoomList;
+
+function escapeHtmlMenu(text) {
+  return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+document.getElementById('btnDoJoin').addEventListener('click', () => {
+  const codeRaw = document.getElementById('joinRoomCode').value;
+  const code = slugifyRoomCode(codeRaw);
+  const password = document.getElementById('joinRoomPassword').value;
+  const nick = (document.getElementById('joinNickname').value || '').trim().slice(0, 16) || `Pilot${Math.floor(Math.random()*90+10)}`;
+  const statusEl = document.getElementById('joinStatus');
+
+  if (!code) {
+    statusEl.textContent = 'Enter a room code first.';
+    statusEl.className = 'menuStatus err';
+    return;
+  }
+  saveNickname(nick);
+  statusEl.textContent = 'Connecting…';
+  statusEl.className = 'menuStatus';
+
+  const room = connectToRoom(code, password, nick, false);
+
+  // No central server means no instant "wrong password" rejection message —
+  // a wrong password silently lands you in an empty, different swarm. We
+  // give it a few seconds to find at least one peer before calling it out.
+  const joinTimeout = setTimeout(() => {
+    if (netState.peers.size === 0) {
+      statusEl.textContent = "Couldn't find anyone in that room. Double-check the code and password, or the room may be empty/offline.";
+      statusEl.className = 'menuStatus err';
+    }
+  }, 6000);
+
+  const checkConnected = setInterval(() => {
+    if (netState.peers.size > 0) {
+      clearInterval(checkConnected);
+      clearTimeout(joinTimeout);
+      statusEl.textContent = `Connected! ${netState.peers.size} pilot(s) already here.`;
+      statusEl.className = 'menuStatus ok';
+      setTimeout(() => enterGame(), 500);
+    }
+  }, 300);
+
+  // Also allow entering even if alone in a freshly-made room with this code/password combo
+  window.__joinAloneTimer = setTimeout(() => {
+    if (netState.room && netState.peers.size === 0) {
+      statusEl.textContent = 'Room open — no one else here yet. You can still fly and others can join you.';
+      statusEl.className = 'menuStatus ok';
+    }
+  }, 6200);
+});
+
+document.getElementById('btnDoHost').addEventListener('click', () => {
+  const nick = (document.getElementById('hostNickname').value || '').trim().slice(0, 16) || `Pilot${Math.floor(Math.random()*90+10)}`;
+  const usePassword = document.getElementById('hostUsePassword').checked;
+  const password = usePassword ? document.getElementById('hostRoomPassword').value : '';
+  const isPublic = document.getElementById('hostPublicList').checked;
+
+  if (usePassword && !password) {
+    const statusEl = document.getElementById('hostStatus');
+    statusEl.textContent = 'Enter a password, or uncheck "Protect with a password".';
+    statusEl.className = 'menuStatus err';
+    return;
+  }
+
+  saveNickname(nick);
+  const code = randomRoomCode();
+  connectToRoom(code, password, nick, true);
+  netState.__hasPassword = usePassword;
+
+  document.getElementById('hostedRoomCode').innerHTML = `${escapeHtmlMenu(code)}<span class="hint">Tap to copy • share this so friends can join${usePassword ? ' (they\'ll need the password too)' : ''}</span>`;
+  document.getElementById('hostedStatus').textContent = 'Room open. Waiting for pilots to join…';
+
+  if (isPublic) startAnnouncing();
+
+  showMenuPanel(menuHosted);
+});
+
+document.getElementById('hostedRoomCode').addEventListener('click', () => {
+  const code = netState.roomCode;
+  if (code && navigator.clipboard) {
+    navigator.clipboard.writeText(code).then(() => {
+      document.getElementById('hostedStatus').textContent = 'Room code copied to clipboard!';
+      document.getElementById('hostedStatus').className = 'menuStatus ok';
+    }).catch(() => {});
+  }
+});
+
+document.getElementById('btnEnterGameHosted').addEventListener('click', () => enterGame());
+
+document.getElementById('menuReturnBtn').addEventListener('click', () => {
+  leaveCurrentRoom();
+  stopAnnouncing();
+  netState.mode = 'singleplayer';
+  mainMenuEl.classList.remove('hidden');
+  showMenuPanel(menuRoot);
+  document.getElementById('chatPanel').style.display = 'none';
+  window.__gameStarted = false;
+});
+
+function enterGame() {
+  mainMenuEl.classList.add('hidden');
+  const statusText = document.getElementById('multiplayerStatusText');
+  const pill = document.getElementById('multiplayerToggle');
+  if (netState.mode === 'multiplayer') {
+    statusText.textContent = `Room: ${netState.roomCode}`;
+    pill.classList.remove('offline');
+    document.getElementById('chatPanel').style.display = 'flex';
+    const chatStatusInit = document.getElementById('chatStatus');
+    if (chatStatusInit) chatStatusInit.textContent = netState.peers.size > 0 ? 'Online' : 'Waiting for others…';
+  } else {
+    statusText.textContent = 'Singleplayer';
+    pill.classList.add('offline');
+    document.getElementById('chatPanel').style.display = 'none';
+  }
+  startScreenEl.style.display = 'flex';
+  window.__gameStarted = true;
+}
+</script>
+
 <script>
+/* =========================================================================
+   GAME (original simulation, lightly hooked into the networking layer above)
+   ========================================================================= */
 (function() {
   const canvas = document.createElement('canvas');
   document.body.appendChild(canvas);
@@ -286,11 +862,8 @@
   const chatSendEl = document.getElementById('chatSend');
   const chatStatusEl = document.getElementById('chatStatus');
   const chatState = {
-    nick: localStorage.getItem('tinyPlanetsChatNick') || '',
-    messages: [],
-    socket: null,
-    reconnectTimer: null,
-    wsUrl: new URLSearchParams(window.location.search).get('chatws') || (window.location.protocol === 'https:' ? 'wss://localhost:3001' : 'ws://localhost:3001')
+    nick: localStorage.getItem('tinyPlanetsNick') || '',
+    messages: []
   };
 
   function escapeHtml(text) {
@@ -300,18 +873,6 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
-  }
-
-  function makeNick() {
-    const names = ['Nova', 'Jett', 'Mira', 'Pip', 'Rook', 'Ari', 'Lune', 'Kade', 'Zoe', 'Rio'];
-    return names[Math.floor(Math.random() * names.length)] + (10 + Math.floor(Math.random() * 90));
-  }
-
-  function setNick(name) {
-    const next = (name || '').trim().slice(0, 16) || makeNick();
-    chatState.nick = next;
-    localStorage.setItem('tinyPlanetsChatNick', chatState.nick);
-    chatStatusEl.textContent = `${chatState.nick}`;
   }
 
   function renderChat() {
@@ -330,81 +891,45 @@
     chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
   }
 
-  function addIncomingMessage(payload) {
-    if (!payload || !payload.type) return;
-    if (payload.type === 'history') {
-      chatState.messages = Array.isArray(payload.messages) ? payload.messages.slice(-80) : [];
-      renderChat();
-      return;
-    }
-    if (payload.type !== 'message' && payload.type !== 'system') return;
+  function addLocalMessage(payload) {
     chatState.messages.push(payload);
     chatState.messages = chatState.messages.slice(-80);
     renderChat();
   }
 
-  function connectChat() {
-    if (!chatMessagesEl || !chatInputEl || !chatSendEl || !chatStatusEl) return;
-    if (chatState.socket && chatState.socket.readyState === WebSocket.OPEN) return;
-
-    if (chatState.reconnectTimer) clearTimeout(chatState.reconnectTimer);
-    chatStatusEl.textContent = 'Connecting...';
-
-    try {
-      chatState.socket = new WebSocket(chatState.wsUrl);
-      chatState.socket.addEventListener('open', () => {
-        chatStatusEl.textContent = 'Online';
-      });
-      chatState.socket.addEventListener('message', e => {
-        try {
-          const payload = JSON.parse(e.data);
-          addIncomingMessage(payload);
-        } catch (err) {}
-      });
-      chatState.socket.addEventListener('close', () => {
-        chatStatusEl.textContent = 'Offline';
-        chatState.socket = null;
-        chatState.reconnectTimer = setTimeout(connectChat, 1800);
-      });
-      chatState.socket.addEventListener('error', () => {
-        chatStatusEl.textContent = 'Offline';
-      });
-    } catch (err) {
-      chatStatusEl.textContent = 'Offline';
-    }
-  }
+  // Hooked up to the Trystero room set up in the module script above.
+  window.__onMultiplayerChatMessage = function(data, peerId) {
+    if (!data || !data.text) return;
+    addLocalMessage({ type: 'message', name: data.name || 'Pilot', text: data.text, ts: data.ts || Date.now() });
+  };
+  window.__onMultiplayerChatSystem = function(text) {
+    addLocalMessage({ type: 'system', text, ts: Date.now() });
+    chatStatusEl.textContent = 'Online';
+  };
 
   function sendChatMessage(text) {
     const value = (text || '').trim();
     if (!value) return;
+    chatInputEl.value = '';
 
     if (value.startsWith('/nick ')) {
-      const nextName = value.slice(6).trim();
+      const nextName = value.slice(6).trim().slice(0, 16);
       if (nextName) {
-        setNick(nextName);
-        const payload = { type: 'system', text: `Your name is now ${chatState.nick}`, ts: Date.now() };
-        if (chatState.socket && chatState.socket.readyState === WebSocket.OPEN) {
-          chatState.socket.send(JSON.stringify(payload));
-        }
+        chatState.nick = nextName;
+        localStorage.setItem('tinyPlanetsNick', chatState.nick);
+        addLocalMessage({ type: 'system', text: `Your name is now ${chatState.nick}`, ts: Date.now() });
       }
-      chatInputEl.value = '';
       return;
     }
 
-    const payload = { type: 'message', name: chatState.nick, text: value, ts: Date.now() };
-    if (chatState.socket && chatState.socket.readyState === WebSocket.OPEN) {
-      chatState.socket.send(JSON.stringify(payload));
-    } else {
-      addIncomingMessage({ type: 'system', text: 'Chat server is offline. Start the server to join globally.', ts: Date.now() });
+    addLocalMessage({ type: 'message', name: chatState.nick || 'You', text: value, ts: Date.now() });
+    if (window.__netSendChat) {
+      window.__netSendChat({ name: chatState.nick || 'You', text: value, ts: Date.now() });
     }
-    chatInputEl.value = '';
   }
 
   function initChat() {
-    setNick(chatState.nick || makeNick());
     renderChat();
-    connectChat();
-
     chatInputEl.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -413,7 +938,6 @@
     });
     chatSendEl.addEventListener('click', () => sendChatMessage(chatInputEl.value));
   }
-
   initChat();
 
   function resize() {
@@ -424,9 +948,6 @@
   resize();
 
   // ---- World setup ----
-  // Masses have been gently rebalanced (see MASS_FACTOR below) so every planet
-  // can be escaped with a boosted thrust, and most can be escaped with plain
-  // thrust too — no world should ever feel impossible to leave.
   const MASS_FACTOR = 0.09;
   const DISTANCE_SCALE = 4.0;
   const G = 0.35;
@@ -481,7 +1002,6 @@
       const distFrac = 0.3 + (i % 3) * 0.2;
       p.craterSpots.push({ ang, distFrac, size: 0.06 + ((i * 37) % 10) / 100 });
     }
-    // Extra surface texture: soft patches for a more painted, storybook look
     p.patches = [];
     const patchCount = 3 + (p.craters % 3);
     for (let i = 0; i < patchCount; i++) {
@@ -493,11 +1013,9 @@
         alpha: 0.12 + ((i * 17) % 10) / 100
       });
     }
-    // Slow, gentle spin — direction and speed vary a bit per planet so they don't all feel identical
     p.rotation = (p.craters * 0.7) % (Math.PI * 2);
     p.spinSpeed = (0.025 + ((p.craters * 13) % 10) / 100 * 0.05) * (p.craters % 2 === 0 ? 1 : -1);
 
-    // Cloud puffs drifting in the atmosphere — richer, layered clouds for planets with an atmosphere
     p.cloudPuffs = [];
     if (p.clouds) {
       const puffCount = 7 + (p.craters % 3) * 2;
@@ -512,7 +1030,6 @@
         });
       }
     } else if (p.atmo) {
-      // thin worlds with an atmosphere but no thick cloud cover get a few wispy streaks
       const puffCount = 3;
       for (let i = 0; i < puffCount; i++) {
         p.cloudPuffs.push({
@@ -528,29 +1045,14 @@
     }
   }
 
-  const multiplayerState = { enabled: false, ghosts: [] };
-  function buildMultiplayerGhosts() {
-    multiplayerState.ghosts = [];
-    const count = 10;
-    for (let i = 0; i < count; i++) {
-      const planet = planets[Math.floor(Math.random() * planets.length)];
-      const orbitRadius = planet.r * (1.3 + Math.random() * 0.9);
-      const angle = Math.random() * Math.PI * 2;
-      const speed = (0.3 + Math.random() * 0.5) * (Math.random() > 0.5 ? 1 : -1);
-      multiplayerState.ghosts.push({
-        name: `Player ${i + 1}`,
-        planet,
-        orbitRadius,
-        angle,
-        speed,
-        bob: Math.random() * Math.PI * 2,
-        color: ['#91e2ff', '#ffb86b', '#c8a0ff', '#ff8fa4', '#7fe0a0', '#ffe07a'][i % 6],
-        x: planet.x + Math.cos(angle) * orbitRadius,
-        y: planet.y + Math.sin(angle) * orbitRadius
-      });
-    }
+  // ---- Multiplayer: real peer ghosts, driven by the Trystero room ----
+  function isMultiplayerActive() {
+    return window.__netState && window.__netState.mode === 'multiplayer' && window.__netState.room;
   }
-  buildMultiplayerGhosts();
+  function getLivePeers() {
+    if (!isMultiplayerActive()) return [];
+    return [...window.__netState.peers.entries()].map(([id, p]) => ({ id, ...p }));
+  }
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const p of planets) {
@@ -615,6 +1117,15 @@
     return Math.round(BASE_FARE + (dist / 1000) * FARE_PER_1000);
   }
 
+  // Shared economy: when playing multiplayer, credits earned are broadcast
+  // so everyone's "Total earned" reflects the shared taxi company's takings.
+  window.__onMultiplayerEconomy = function(data, peerId) {
+    if (!data || typeof data.creditsDelta !== 'number') return;
+    ship.credits += data.creditsDelta;
+    localStorage.setItem('tinyPlanetsCredits', ship.credits);
+    if (data.note) showMsg(data.note, 2.5);
+  };
+
   function handleStationArrival(planet) {
     const arriving = ship.passengers.filter(pax => pax.destination === planet);
     if (arriving.length > 0) {
@@ -629,6 +1140,12 @@
       for (let i = 0; i < arriving.length; i++) {
         const origin = pickRandomOtherStation(planet);
         if (origin) origin.waiting = Math.min(origin.waiting + 1, 3);
+      }
+      if (isMultiplayerActive() && window.__netSendEconomy) {
+        window.__netSendEconomy({
+          creditsDelta: totalFare,
+          note: `${chatState.nick || 'A pilot'} earned 🪙${totalFare} dropping off at ${planet.name}`
+        });
       }
     }
 
@@ -647,8 +1164,7 @@
     }
   }
 
-  // Starfield: expand the spread so the background feels much wider on zoom-out
-  const STAR_FIELD_SIZE = 240000; // total span (width and height)
+  const STAR_FIELD_SIZE = 240000;
   const stars = [];
   for (let i = 0; i < 1200; i++) {
     stars.push({
@@ -659,7 +1175,6 @@
       twinklePhase: Math.random() * Math.PI * 2
     });
   }
-  // A few extra big sparkly stars for atmosphere
   const bigStars = [];
   for (let i = 0; i < 60; i++) {
     bigStars.push({
@@ -706,7 +1221,6 @@
   }
 
   const cam = { x: 0, y: 0, zoom: 0.18 };
-  // Allow zooming out much farther so the starfield can be appreciated
   const ZOOM_MIN = 0.002, ZOOM_MAX = 1.5;
   function setZoom(z) {
     cam.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
@@ -714,12 +1228,9 @@
 
   const keys = {};
   window.addEventListener('keydown', e => {
+    if (!window.__gameStarted) return;
     keys[e.code] = true;
     if (e.code === 'KeyR') resetShip();
-    if (e.code === 'KeyM') {
-      setMultiplayerEnabled(!multiplayerState.enabled, true);
-      e.preventDefault();
-    }
     if (e.code === 'BracketRight') snapTimeScaleUp();
     if (e.code === 'BracketLeft') snapTimeScaleDown();
     if (e.code === 'KeyT') {
@@ -733,8 +1244,7 @@
     setZoom(cam.zoom * ((e.deltaY > 0) ? 0.9 : 1.1));
   }, { passive: true });
 
-  // ---- Pinch-to-zoom (two-finger touch gesture on the canvas) ----
-  const activeTouches = new Map(); // pointerId -> {x, y}
+  const activeTouches = new Map();
   let pinchStartDist = null;
   let pinchStartZoom = null;
 
@@ -777,9 +1287,7 @@
   canvas.addEventListener('pointerleave', endTouch);
 
   const startScreen = document.getElementById('startScreen');
-  let started = false;
   startScreen.addEventListener('click', () => {
-    started = true;
     startScreen.style.display = 'none';
   });
 
@@ -788,10 +1296,7 @@
     startScreen.style.display = 'flex';
   });
 
-  // ---- Zoom in/out buttons (mobile) ----
-  // Hold-to-repeat: a single tap nudges the zoom once, holding the button
-  // keeps zooming smoothly, similar to the thrust/boost buttons above.
-  const ZOOM_STEP_PER_SEC = 1.6; // multiplicative rate per second while held
+  const ZOOM_STEP_PER_SEC = 1.6;
   function setupZoomButton(el, direction) {
     let held = false;
     function press(e) {
@@ -815,9 +1320,9 @@
   const isZoomInHeld = setupZoomButton(zoomInBtn, 1);
   const isZoomOutHeld = setupZoomButton(zoomOutBtn, -1);
 
-  // ---- Mobile timewarp buttons ----
   const timeWarpInBtn = document.getElementById('timeWarpInBtn');
   const timeWarpOutBtn = document.getElementById('timeWarpOutBtn');
+  let timeWarpInHoldTimer = 0;
   let timeWarpOutHoldTimer = 0;
   const TIMEWARP_REPEAT_INTERVAL = 0.22;
 
@@ -859,19 +1364,13 @@
   const isTimeWarpInHeld = setupTimeWarpButton(timeWarpInBtn, 1);
   const isTimeWarpOutHeld = setupTimeWarpButton(timeWarpOutBtn, -1);
 
-  // ---- Multi-touch safe control buttons ----
-  // Each button independently tracks its OWN pointer id, so holding the boost
-  // button with one thumb and the thrust button with another thumb both
-  // register at the same time. Per-element listeners (instead of one
-  // delegated listener on a parent) plus pointer capture keep each touch
-  // bound to its own button for the whole gesture.
   const allControlButtons = document.querySelectorAll('.controlButton');
   allControlButtons.forEach(btn => {
     const key = btn.dataset.key;
     let activePointerId = null;
 
     function press(e) {
-      if (activePointerId !== null) return; // already held by another touch
+      if (activePointerId !== null) return;
       activePointerId = e.pointerId;
       keys[key] = true;
       btn.classList.add('active');
@@ -892,24 +1391,12 @@
   });
 
   const msgEl = document.getElementById('msg');
-  const multiplayerToggleEl = document.getElementById('multiplayerToggle');
   let msgTimer = 0;
   function showMsg(text, t) {
     msgEl.textContent = text;
     msgEl.style.opacity = 1;
     msgTimer = t;
   }
-  function setMultiplayerEnabled(enabled, showMessage = true) {
-    multiplayerState.enabled = enabled;
-    multiplayerToggleEl.classList.toggle('active', enabled);
-    multiplayerToggleEl.setAttribute('aria-pressed', String(enabled));
-    multiplayerToggleEl.innerHTML = `<span class="dot"></span>${enabled ? 'Multiplayer: On' : 'Multiplayer: Off'}`;
-    if (showMessage) {
-      showMsg(enabled ? 'Multiplayer mode enabled — other taxis are visible' : 'Multiplayer mode disabled', 1.4);
-    }
-  }
-  multiplayerToggleEl.addEventListener('click', () => setMultiplayerEnabled(!multiplayerState.enabled, true));
-  setMultiplayerEnabled(false, false);
 
   function findNearestPlanet() {
     let best = null, bestDist = Infinity;
@@ -1002,14 +1489,12 @@
     mmCtx.arc(shipPos.x, shipPos.y, 3, 0, Math.PI * 2);
     mmCtx.fill();
 
-    if (multiplayerState.enabled) {
-      for (const ghost of multiplayerState.ghosts) {
-        const pos = worldToMM(ghost.x, ghost.y);
-        mmCtx.fillStyle = ghost.color;
-        mmCtx.beginPath();
-        mmCtx.arc(pos.x, pos.y, 2.2, 0, Math.PI * 2);
-        mmCtx.fill();
-      }
+    for (const peer of getLivePeers()) {
+      const pos = worldToMM(peer.x, peer.y);
+      mmCtx.fillStyle = '#91e2ff';
+      mmCtx.beginPath();
+      mmCtx.arc(pos.x, pos.y, 2.2, 0, Math.PI * 2);
+      mmCtx.fill();
     }
 
     const viewW = canvas.width / cam.zoom;
@@ -1023,6 +1508,7 @@
     mmCtx.strokeRect(vTopLeft.x, vTopLeft.y, vBotRight.x - vTopLeft.x, vBotRight.y - vTopLeft.y);
   }
 
+  let netSyncTimer = 0;
   function update(dt) {
     dt = Math.min(dt, 0.05);
 
@@ -1030,10 +1516,8 @@
       p.rotation += p.spinSpeed * dt;
     }
 
-    // Hold-to-repeat zoom buttons
     if (isZoomInHeld()) setZoom(cam.zoom * Math.pow(1 + ZOOM_STEP_PER_SEC, dt));
     if (isZoomOutHeld()) setZoom(cam.zoom * Math.pow(1 / (1 + ZOOM_STEP_PER_SEC), dt));
-    // Hold-to-repeat timewarp buttons
     if (isTimeWarpInHeld()) {
       timeWarpInHoldTimer += dt;
       if (timeWarpInHoldTimer >= TIMEWARP_REPEAT_INTERVAL) {
@@ -1053,13 +1537,7 @@
       timeWarpOutHoldTimer = 0;
     }
 
-    if (multiplayerState.enabled) {
-      for (const ghost of multiplayerState.ghosts) {
-        // Keep multiplayer markers fixed in place instead of making them orbit planets.
-      }
-    }
-
-    if (!started) return;
+    if (!window.__gameStarted) return;
 
     if (keys['KeyA'] || keys['ArrowLeft']) ship.angle -= ship.turnSpeed * dt;
     if (keys['KeyD'] || keys['ArrowRight']) ship.angle += ship.turnSpeed * dt;
@@ -1104,8 +1582,6 @@
       gx += a * dx / dist;
       gy += a * dy / dist;
 
-      // Atmospheric drag: gently slows the ship the deeper it flies into a planet's air,
-      // strongest right at the surface and fading to nothing at the outer edge.
       if (p.atmo && dist < p.r + p.atmoDepth) {
         const depthIntoAtmo = Math.max(0, (p.r + p.atmoDepth - dist) / p.atmoDepth);
         dragFactor = Math.max(dragFactor, depthIntoAtmo);
@@ -1115,7 +1591,7 @@
     ship.vy += gy * dt;
 
     if (dragFactor > 0) {
-      const DRAG_STRENGTH = 0.9; // how hard the thickest air slows you down, per second
+      const DRAG_STRENGTH = 0.9;
       const dragAmount = Math.min(0.95, dragFactor * dragFactor * DRAG_STRENGTH * dt);
       ship.vx *= (1 - dragAmount);
       ship.vy *= (1 - dragAmount);
@@ -1128,8 +1604,6 @@
     if (dist <= nearest.r + 8) {
       const speed = Math.hypot(ship.vx, ship.vy);
       if (speed > ship.safeLandingSpeed) {
-        const overSpeed = speed - ship.safeLandingSpeed;
-        // Bounce/dampen velocity on a hard landing but do not track HP
         showMsg("Bit of a bounce on " + nearest.name + "! Taxi's still good to go.", 2.5);
         ship.vx *= -0.15; ship.vy *= -0.15;
       } else if (!ship.landed) {
@@ -1172,6 +1646,13 @@
       if (msgTimer <= 0) msgEl.style.opacity = 0;
     }
 
+    // Broadcast our position to peers a few times a second (not every frame)
+    netSyncTimer += dt;
+    if (netSyncTimer > 0.08 && isMultiplayerActive() && window.__netSendState) {
+      netSyncTimer = 0;
+      window.__netSendState({ x: ship.x, y: ship.y, angle: ship.angle, landed: ship.landed, cooked: ship.cooked });
+    }
+
     const speed = Math.hypot(ship.vx, ship.vy);
     const paxList = ship.passengers.map(pax => `${pax.destination.name} (🪙${pax.fare})`).join(', ') || 'empty seats — find a rider!';
     const meterTotal = ship.passengers.reduce((sum, pax) => sum + pax.fare, 0);
@@ -1183,13 +1664,17 @@
     else if (ship.landed) statusHtml = `<span class="statusBadge statusParked">🛬 PARKED</span>`;
     else statusHtml = `<span class="statusBadge statusFlying">🌠 FLYING</span>`;
 
+    const mpLine = isMultiplayerActive()
+      ? `🌐 Room: ${window.__netState.roomCode} — ${getLivePeers().length} other pilot${getLivePeers().length === 1 ? '' : 's'} nearby`
+      : `🌐 Singleplayer`;
+
     document.getElementById('hud').innerHTML =
       `🚕 Space Taxi — Nearest world: <b>${nearest.name}</b> &nbsp; ${statusHtml}<br>` +
       `🚀 Speed: ${speed.toFixed(0)}<br>` +
       `⛽ Fuel: ${fuelPct}%<span class="fuelBarWrap"><span class="fuelBarFill" style="width:${fuelPct}%; background:${fuelColor};"></span></span><br>` +
       `🧑‍🚀 Riders: ${ship.passengers.length}/${ship.maxSeats} — heading to: ${paxList}<br>` +
       `🪙 On the meter: ${meterTotal} &nbsp; | &nbsp; 💰 Total earned: ${ship.credits}<br>` +
-      `🌐 ${multiplayerState.enabled ? 'Multiplayer: on' : 'Multiplayer: off'}<br>` +
+      `${mpLine}<br>` +
       `⏱️ Time accel: x${timeScale.toFixed(2)}`;
   }
 
@@ -1242,7 +1727,6 @@
       const atmoRad = p.atmo ? (p.r + p.atmoDepth) * cam.zoom : rad;
       if (s.x + atmoRad < 0 || s.x - atmoRad > canvas.width || s.y + atmoRad < 0 || s.y - atmoRad > canvas.height) continue;
 
-      // Big, soft, glowing atmosphere halo
       if (p.atmo) {
         const grad = ctx.createRadialGradient(s.x, s.y, rad * 0.7, s.x, s.y, atmoRad);
         grad.addColorStop(0, p.atmo + 'cc');
@@ -1254,7 +1738,6 @@
         ctx.arc(s.x, s.y, atmoRad, 0, Math.PI * 2);
         ctx.fill();
 
-        // A subtle brighter inner rim glow, like sunlight catching the air
         const rimGrad = ctx.createRadialGradient(s.x, s.y, rad * 0.95, s.x, s.y, rad * 1.25);
         rimGrad.addColorStop(0, p.atmo + '00');
         rimGrad.addColorStop(0.5, p.atmo + 'aa');
@@ -1265,7 +1748,6 @@
         ctx.fill();
       }
 
-      // Planet body with a soft lighting gradient for a rounder, friendlier look
       const bodyGrad = ctx.createRadialGradient(
         s.x - rad * 0.35, s.y - rad * 0.35, rad * 0.1,
         s.x, s.y, rad * 1.1
@@ -1278,7 +1760,6 @@
       ctx.arc(s.x, s.y, Math.max(rad, 1.5), 0, Math.PI * 2);
       ctx.fill();
 
-      // Soft surface patches for extra painterly detail — rotate with the planet's slow spin
       if (cam.zoom > 0.02 && p.patches) {
         ctx.save();
         ctx.beginPath();
@@ -1299,7 +1780,6 @@
         ctx.restore();
       }
 
-      // Craters — rotate with the planet's slow spin
       if (cam.zoom > 0.04 && p.craterSpots) {
         for (const c of p.craterSpots) {
           const spunAng = c.ang + p.rotation;
@@ -1310,7 +1790,6 @@
           ctx.beginPath();
           ctx.arc(cx, cy, cs, 0, Math.PI * 2);
           ctx.fill();
-          // tiny highlight on the crater rim for a bit of depth
           ctx.strokeStyle = lighten(p.color, 0.3);
           ctx.globalAlpha = 0.4;
           ctx.lineWidth = Math.max(0.5, cs * 0.15);
@@ -1321,8 +1800,6 @@
         }
       }
 
-      // Drifting, layered cloud puffs — a soft lower deck and a brighter, faster upper deck,
-      // both riding the planet's slow rotation, plus thin wisps for airy-but-dry worlds
       if (cam.zoom > 0.02 && p.cloudPuffs) {
         ctx.save();
         ctx.beginPath();
@@ -1358,7 +1835,6 @@
         ctx.restore();
       }
 
-      // Rings for planets that have them
       if (p.rings && rad > 3) {
         ctx.save();
         ctx.strokeStyle = lighten(p.color, 0.15) + 'aa';
@@ -1374,8 +1850,6 @@
         ctx.restore();
       }
 
-      // Labels: normal crisp label when reasonably zoomed in; a simplified,
-      // fixed-size label when zoomed far out so planet names remain visible.
       const FAR_ZOOM_THRESHOLD = 0.05;
       if (cam.zoom > FAR_ZOOM_THRESHOLD) {
         ctx.font = 'bold 13px "Comic Sans MS", "Trebuchet MS", sans-serif';
@@ -1389,7 +1863,6 @@
         ctx.fillStyle = '#eef4ff';
         ctx.fillText(label, s.x, s.y - atmoRad - 8);
       } else {
-        // Always draw a compact label when zoomed far away.
         ctx.fillStyle = p.color;
         ctx.strokeStyle = 'rgba(255,255,255,0.7)';
         ctx.lineWidth = 1;
@@ -1412,11 +1885,10 @@
 
     drawTrailAndOrbit();
     drawWalkers();
-    drawMultiplayerGhosts();
+    drawPeerGhosts();
     drawShip();
   }
 
-  // small color helpers for gradients
   function hexToRgb(hex) {
     hex = hex.replace('#', '');
     if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
@@ -1443,7 +1915,6 @@
       ctx.beginPath();
       ctx.arc(s.x, s.y + bob, 3.5, 0, Math.PI * 2);
       ctx.fill();
-      // tiny sparkle above each little friend
       ctx.fillStyle = 'rgba(255,255,255,0.8)';
       ctx.beginPath();
       ctx.arc(s.x, s.y + bob - 5, 1, 0, Math.PI * 2);
@@ -1451,35 +1922,44 @@
     }
   }
 
-  function drawMultiplayerGhosts() {
-    if (!multiplayerState.enabled) return;
-    for (const ghost of multiplayerState.ghosts) {
-      const s = worldToScreen(ghost.x, ghost.y);
-      const size = Math.max(4.2, 8 * Math.min(1, cam.zoom * 2.2));
-      ctx.fillStyle = ghost.color;
+  const ghostColors = ['#91e2ff', '#ffb86b', '#c8a0ff', '#ff8fa4', '#7fe0a0', '#ffe07a'];
+  function peerColor(peerId) {
+    let hash = 0;
+    for (let i = 0; i < peerId.length; i++) hash = (hash * 31 + peerId.charCodeAt(i)) >>> 0;
+    return ghostColors[hash % ghostColors.length];
+  }
+
+  function drawPeerGhosts() {
+    for (const peer of getLivePeers()) {
+      const s = worldToScreen(peer.x, peer.y);
+      const size = Math.max(6, 10 * Math.min(1, cam.zoom * 3));
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate(peer.angle || 0);
+      const color = peerColor(peer.id);
+      ctx.fillStyle = color;
+      ctx.strokeStyle = 'rgba(10,10,20,0.6)';
+      ctx.lineWidth = Math.max(1, size * 0.08);
+      ctx.globalAlpha = 0.85;
       ctx.beginPath();
-      ctx.arc(s.x, s.y, size * 0.55, 0, Math.PI * 2);
+      ctx.moveTo(size, 0);
+      ctx.lineTo(-size * 0.7, size * 0.6);
+      ctx.lineTo(-size * 0.4, 0);
+      ctx.lineTo(-size * 0.7, -size * 0.6);
+      ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, size * 0.55, 0, Math.PI * 2);
       ctx.stroke();
-      if (cam.zoom > 0.05) {
-        const labelText = `${ghost.name} • ${ghost.x.toFixed(1)}, ${ghost.y.toFixed(1)}`;
+      ctx.globalAlpha = 1;
+      ctx.restore();
+
+      if (cam.zoom > 0.03) {
         ctx.font = 'bold 11px "Comic Sans MS", "Trebuchet MS", sans-serif';
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        const textWidth = ctx.measureText(labelText).width;
-        const boxX = s.x - textWidth / 2 - 6;
-        const boxY = s.y - size - 18;
-        ctx.fillStyle = 'rgba(4, 8, 16, 0.78)';
-        ctx.fillRect(boxX, boxY, textWidth + 12, 18);
         ctx.lineWidth = 3;
         ctx.strokeStyle = 'rgba(5,8,18,0.7)';
-        ctx.strokeText(labelText, s.x, s.y - size - 8);
-        ctx.fillStyle = '#eef4ff';
-        ctx.fillText(labelText, s.x, s.y - size - 8);
+        ctx.strokeText(peer.name || 'Pilot', s.x, s.y - size - 8);
+        ctx.fillStyle = color;
+        ctx.fillText(peer.name || 'Pilot', s.x, s.y - size - 8);
       }
     }
   }
@@ -1518,8 +1998,6 @@
     ctx.save();
     ctx.translate(s.x, s.y);
 
-    // When zoomed way out, add a pulsing beacon ring around the ship so it's
-    // instantly findable among all the little planet dots.
     if (cam.zoom < 0.05) {
       const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.004);
       const ringR = 14 + pulse * 6;
@@ -1533,7 +2011,6 @@
     ctx.rotate(ship.angle);
     const size = Math.max(6, 10 * Math.min(1, cam.zoom * 3));
 
-    // Soft glow around the ship so it's easy for little eyes to spot
     const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 2.2);
     glow.addColorStop(0, ship.cooked ? 'rgba(255,150,80,0.35)' : 'rgba(255,232,176,0.35)');
     glow.addColorStop(1, 'rgba(255,232,176,0)');
@@ -1554,7 +2031,6 @@
     ctx.fill();
     ctx.stroke();
 
-    // taxi checker stripe running down the middle
     if (!ship.cooked) {
       const stripeW = size * 0.22;
       ctx.save();
@@ -1573,13 +2049,12 @@
       ctx.restore();
     }
 
-    // little cockpit window
     ctx.fillStyle = '#7fd0ff';
     ctx.beginPath();
     ctx.arc(size * 0.15, 0, size * 0.22, 0, Math.PI * 2);
     ctx.fill();
 
-    if ((keys['KeyW'] || keys['ArrowUp']) && started) {
+    if ((keys['KeyW'] || keys['ArrowUp']) && window.__gameStarted) {
       const boosting = keys['ShiftLeft'] || keys['ShiftRight'];
       ctx.fillStyle = boosting ? '#8ff0ff' : '#ff9a4a';
       ctx.beginPath();
