@@ -15,10 +15,10 @@
   }
   #mainMenu.hidden { display: none; }
   #mainMenu h1 {
-    color: #ffe27a; font-weight: bold; letter-spacing: 3px; font-size: 40px; margin: 0 0 4px;
+    color: #ffe27a; font-weight: bold; letter-spacing: 3px; font-size: clamp(24px, 6vw, 40px); margin: 0 0 4px;
     text-shadow: 0 0 20px rgba(255,220,120,0.6), 0 2px 4px rgba(0,0,0,0.5);
   }
-  #mainMenu .sub { color: #9ad0ff; font-size: 15px; margin-bottom: 28px; }
+  #mainMenu .sub { color: #9ad0ff; font-size: clamp(12px, 3vw, 15px); margin-bottom: 28px; }
   .menuPanel {
     background: rgba(12,18,36,0.7); border: 2px solid rgba(140,180,255,0.3);
     border-radius: 20px; padding: 22px 26px; width: min(420px, 90vw); box-sizing: border-box;
@@ -91,8 +91,9 @@
   canvas { display: block; touch-action: none; }
   #hud {
     position: fixed; top: 10px; left: 10px; color: #e8f0ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
-    font-size: 14px; background: rgba(10,15,35,0.6); padding: 12px 16px; border-radius: 14px;
+    font-size: clamp(11px, 1.8vw, 14px); background: rgba(10,15,35,0.6); padding: 12px 16px; border-radius: 14px;
     line-height: 1.6; pointer-events: none; user-select: none; border: 2px solid rgba(140,180,255,0.35);
+    max-width: min(94vw, 420px); box-sizing: border-box;
   }
   #hud b { color: #ffe27a; }
   #hud .statusBadge {
@@ -113,7 +114,7 @@
   #hud .hpBarFill { height: 100%; border-radius: 6px; background: #ff8aa8; transition: width 0.15s; }
   #msg {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    color: #fff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif; font-size: 17px;
+    color: #fff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif; font-size: clamp(13px, 2.2vw, 17px);
     font-weight: bold; background: rgba(20,20,45,0.65); padding: 10px 22px; border-radius: 20px;
     pointer-events: none; user-select: none; transition: opacity 0.3s;
     border: 2px solid rgba(255,220,140,0.5); text-shadow: 0 1px 3px rgba(0,0,0,0.5);
@@ -138,7 +139,8 @@
   }
   #startScreen { touch-action: none; }
   #minimap {
-    position: fixed; bottom: 12px; right: 12px; width: 190px; height: 190px;
+    position: fixed; bottom: 12px; right: 12px;
+    width: clamp(120px, 16vw, 190px); height: clamp(120px, 16vw, 190px);
     background: rgba(5,10,25,0.75); border: 2px solid rgba(140,180,255,0.4);
     border-radius: 14px; pointer-events: none; z-index: 5;
   }
@@ -157,7 +159,7 @@
   #multiplayerToggle .dot { width: 8px; height: 8px; border-radius: 50%; background: #7fe0a0; box-shadow: 0 0 8px rgba(127,224,160,0.8); }
   #multiplayerToggle.offline .dot { background: #8a94ac; box-shadow: none; }
   #menuReturnBtn {
-    position: fixed; top: 130px; right: 56px; z-index: 7; pointer-events: auto;
+    position: fixed; top: 170px; right: 56px; z-index: 7; pointer-events: auto;
     padding: 8px 12px; border-radius: 999px; border: 2px solid rgba(140,180,255,0.5);
     background: rgba(10,15,35,0.75); color: #eef4ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
     font-weight: bold; font-size: 12px; cursor: pointer;
@@ -276,11 +278,11 @@
   .zoomButton.active { transform: scale(0.92); background: rgba(140,180,255,0.35); }
 
   @media (max-width: 900px) {
-    #hud { font-size: 13px; padding: 10px 14px; max-width: 92vw; }
+    #hud { max-width: 92vw; }
     #legend { display: none; }
     #helpToggle { display: flex; }
     #zoomControls { display: flex; }
-    #minimap { width: 120px; height: 120px; bottom: 200px; right: 12px; }
+    #minimap { bottom: 200px; right: 12px; }
     #mobileControls { display: block; }
     #startScreen p { max-width: 90vw; }
     #startScreen .go { width: auto; padding: 12px 24px; }
@@ -300,7 +302,19 @@
     .controlButton { width: 50px; height: 50px; font-size: 20px; }
     .controlButton.boost { width: 68px; height: 68px; font-size: 13px; }
     #leftZone { grid-template-columns: 50px 50px 50px; }
-    #hud { font-size: 12px; padding: 10px 12px; }
+    #hud { padding: 10px 12px; }
+  }
+
+  /* Short / landscape phones: mobile controls and HUD can collide with a
+     short viewport height, so shrink and reflow rather than overlap. */
+  @media (max-height: 480px) and (pointer: coarse) {
+    #hud { font-size: clamp(10px, 2.2vh, 13px); padding: 8px 10px; line-height: 1.4; }
+    #minimap { display: none; }
+    #mobileControls .zone { bottom: 8px; }
+    .controlButton { width: 42px; height: 42px; }
+    .controlButton.boost { width: 58px; height: 58px; font-size: 11px; }
+    #msg { bottom: 8px; font-size: clamp(11px, 2vh, 14px); }
+    #chatPanel { bottom: 8px; max-height: 40vh; }
   }
 </style>
 <base target="_blank">
@@ -942,11 +956,25 @@ function enterGame() {
   }
   initChat();
 
+  // logicalW/logicalH are the LOGICAL (CSS-pixel) size of the canvas — all
+  // game math (camera, worldToScreen, minimap view-rect) uses these instead
+  // of canvas.width/height directly, because the backing buffer is scaled
+  // up by devicePixelRatio for crisp rendering on retina/high-DPI screens.
+  let logicalW = window.innerWidth;
+  let logicalH = window.innerHeight;
+
   function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    logicalW = window.innerWidth;
+    logicalH = window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    canvas.width = Math.round(logicalW * dpr);
+    canvas.height = Math.round(logicalH * dpr);
+    canvas.style.width = logicalW + 'px';
+    canvas.style.height = logicalH + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
   resize();
 
   // ---- World setup ----
@@ -1445,9 +1473,19 @@ function enterGame() {
     return pts;
   }
 
+  let mmLastCssW = -1, mmLastCssH = -1, mmLastDpr = -1;
   function drawMinimap() {
-    const mmW = minimap.width = 190;
-    const mmH = minimap.height = 190;
+    const cssW = minimap.clientWidth || 190;
+    const cssH = minimap.clientHeight || 190;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    if (cssW !== mmLastCssW || cssH !== mmLastCssH || dpr !== mmLastDpr) {
+      minimap.width = Math.round(cssW * dpr);
+      minimap.height = Math.round(cssH * dpr);
+      mmCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      mmLastCssW = cssW; mmLastCssH = cssH; mmLastDpr = dpr;
+    }
+    const mmW = cssW;
+    const mmH = cssH;
     mmCtx.clearRect(0, 0, mmW, mmH);
 
     const pad = 10;
@@ -1499,8 +1537,8 @@ function enterGame() {
       mmCtx.fill();
     }
 
-    const viewW = canvas.width / cam.zoom;
-    const viewH = canvas.height / cam.zoom;
+    const viewW = logicalW / cam.zoom;
+    const viewH = logicalH / cam.zoom;
     const viewX = cam.x - viewW / 2;
     const viewY = cam.y - viewH / 2;
     const vTopLeft = worldToMM(viewX, viewY);
@@ -1682,30 +1720,30 @@ function enterGame() {
 
   function worldToScreen(x, y) {
     return {
-      x: canvas.width / 2 + (x - cam.x) * cam.zoom,
-      y: canvas.height / 2 + (y - cam.y) * cam.zoom
+      x: logicalW / 2 + (x - cam.x) * cam.zoom,
+      y: logicalH / 2 + (y - cam.y) * cam.zoom
     };
   }
 
   function renderVesselView() {
     ctx.fillStyle = '#05070c';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, logicalW, logicalH);
 
     const now = performance.now() * 0.001;
 
     ctx.fillStyle = '#aab4c8';
     for (const s of stars) {
-      const sx = canvas.width / 2 + (s.x - cam.x * 0.3) * cam.zoom * 0.5;
-      const sy = canvas.height / 2 + (s.y - cam.y * 0.3) * cam.zoom * 0.5;
-      if (sx < -10 || sx > canvas.width + 10 || sy < -10 || sy > canvas.height + 10) continue;
+      const sx = logicalW / 2 + (s.x - cam.x * 0.3) * cam.zoom * 0.5;
+      const sy = logicalH / 2 + (s.y - cam.y * 0.3) * cam.zoom * 0.5;
+      if (sx < -10 || sx > logicalW + 10 || sy < -10 || sy > logicalH + 10) continue;
       const twinkle = 0.35 + 0.35 * Math.sin(now * s.twinkleSpeed + s.twinklePhase);
       ctx.globalAlpha = 0.4 + twinkle * 0.5;
       ctx.fillRect(sx, sy, s.s, s.s);
     }
     for (const s of bigStars) {
-      const sx = canvas.width / 2 + (s.x - cam.x * 0.3) * cam.zoom * 0.5;
-      const sy = canvas.height / 2 + (s.y - cam.y * 0.3) * cam.zoom * 0.5;
-      if (sx < -10 || sx > canvas.width + 10 || sy < -10 || sy > canvas.height + 10) continue;
+      const sx = logicalW / 2 + (s.x - cam.x * 0.3) * cam.zoom * 0.5;
+      const sy = logicalH / 2 + (s.y - cam.y * 0.3) * cam.zoom * 0.5;
+      if (sx < -10 || sx > logicalW + 10 || sy < -10 || sy > logicalH + 10) continue;
       const twinkle = 0.4 + 0.4 * Math.sin(now * s.twinkleSpeed + s.twinklePhase);
       ctx.globalAlpha = 0.5 + twinkle * 0.5;
       ctx.fillStyle = '#ffe8b0';
@@ -1727,7 +1765,7 @@ function enterGame() {
       const s = worldToScreen(p.x, p.y);
       const rad = p.r * cam.zoom;
       const atmoRad = p.atmo ? (p.r + p.atmoDepth) * cam.zoom : rad;
-      if (s.x + atmoRad < 0 || s.x - atmoRad > canvas.width || s.y + atmoRad < 0 || s.y - atmoRad > canvas.height) continue;
+      if (s.x + atmoRad < 0 || s.x - atmoRad > logicalW || s.y + atmoRad < 0 || s.y - atmoRad > logicalH) continue;
 
       if (p.atmo) {
         const grad = ctx.createRadialGradient(s.x, s.y, rad * 0.7, s.x, s.y, atmoRad);
