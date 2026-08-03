@@ -533,20 +533,21 @@ function connectToRoom(roomCode, password, nickname, isHost) {
   const room = joinRoom({ appId: APP_ID }, trysteroId);
   netState.room = room;
 
-  const [sendState, getState] = room.makeAction('state');
-  const [sendChat, getChat] = room.makeAction('chat');
-  const [sendEconomy, getEconomy] = room.makeAction('econ');
-  const [sendJoinInfo, getJoinInfo] = room.makeAction('joininfo');
-  netState.sendState = sendState;
-  netState.sendChat = sendChat;
-  netState.sendEconomy = sendEconomy;
-  window.__netSendState = sendState;
-  window.__netSendChat = sendChat;
-  window.__netSendEconomy = sendEconomy;
+  const stateAction = room.makeAction('state');
+  const chatAction = room.makeAction('chat');
+  const economyAction = room.makeAction('econ');
+  const joinInfoAction = room.makeAction('joininfo');
+
+  netState.sendState = stateAction.send;
+  netState.sendChat = chatAction.send;
+  netState.sendEconomy = economyAction.send;
+  window.__netSendState = stateAction.send;
+  window.__netSendChat = chatAction.send;
+  window.__netSendEconomy = economyAction.send;
 
   room.onPeerJoin(peerId => {
     netState.peers.set(peerId, { name: 'Pilot', x: 0, y: 0, angle: 0, credits: 0, ts: performance.now() });
-    sendJoinInfo({ name: netState.nickname });
+    joinInfoAction.send({ name: netState.nickname });
     if (typeof window.__onMultiplayerChatSystem === 'function') {
       window.__onMultiplayerChatSystem(`A pilot connected.`);
     }
@@ -560,30 +561,30 @@ function connectToRoom(roomCode, password, nickname, isHost) {
     }
   });
 
-  getJoinInfo((data, peerId) => {
+  joinInfoAction.onMessage = (data, peerId) => {
     const p = netState.peers.get(peerId);
     if (p && data && data.name) p.name = String(data.name).slice(0, 16);
-  });
+  };
 
-  getState((data, peerId) => {
+  stateAction.onMessage = (data, peerId) => {
     const p = netState.peers.get(peerId);
     if (!p || !data) return;
     p.x = data.x; p.y = data.y; p.angle = data.angle;
     p.landed = data.landed; p.cooked = data.cooked;
     p.ts = performance.now();
-  });
+  };
 
-  getChat((data, peerId) => {
+  chatAction.onMessage = (data, peerId) => {
     if (typeof window.__onMultiplayerChatMessage === 'function') {
       window.__onMultiplayerChatMessage(data, peerId);
     }
-  });
+  };
 
-  getEconomy((data, peerId) => {
+  economyAction.onMessage = (data, peerId) => {
     if (typeof window.__onMultiplayerEconomy === 'function') {
       window.__onMultiplayerEconomy(data, peerId);
     }
-  });
+  };
 
   return room;
 }
@@ -597,10 +598,10 @@ function connectToLobby() {
   if (netState.lobbyRoom) return;
   const lobby = joinRoom({ appId: APP_ID }, LOBBY_ROOM_ID);
   netState.lobbyRoom = lobby;
-  const [sendPing, getPing] = lobby.makeAction('roomping');
-  netState.sendLobbyPing = sendPing;
+  const pingAction = lobby.makeAction('roomping');
+  netState.sendLobbyPing = pingAction.send;
 
-  getPing((data, peerId) => {
+  pingAction.onMessage = (data, peerId) => {
     if (!data || !data.roomCode) return;
     publicRoomDirectory.set(data.roomCode, {
       players: data.players || 1,
@@ -608,7 +609,7 @@ function connectToLobby() {
       hasPassword: !!data.hasPassword
     });
     if (typeof window.__onRoomListUpdate === 'function') window.__onRoomListUpdate();
-  });
+  };
 
   lobby.onPeerJoin(() => {
     if (netState.mode === 'multiplayer' && netState.isHost && netState.roomCode) {
