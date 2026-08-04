@@ -466,7 +466,17 @@
    just means: generate a room id, optionally derive it from a password,
    and open a WebRTC swarm that other browsers can join directly.
    ========================================================================= */
-import { joinRoom, selfId } from 'https://esm.run/trystero/torrent';
+let joinRoom = null;
+let selfId = null;
+let trysteroLoadError = null;
+try {
+  const trystero = await import('https://esm.run/trystero/torrent');
+  joinRoom = trystero.joinRoom;
+  selfId = trystero.selfId;
+} catch (err) {
+  trysteroLoadError = err;
+  console.error('[TinyPlanetsTaxi] Failed to load Trystero networking library:', err);
+}
 
 const APP_ID = 'tiny-planets-taxi-v1';
 const LOBBY_ROOM_ID = 'tiny-planets-taxi-public-lobby';
@@ -538,6 +548,9 @@ function leaveCurrentRoom() {
 window.__netState = netState;
 
 function connectToRoom(roomCode, password, nickname, isHost) {
+  if (!joinRoom) {
+    throw new Error('Networking library did not load. Check your connection and try again.');
+  }
   leaveCurrentRoom();
   netState.mode = 'multiplayer';
   netState.roomCode = roomCode;
@@ -610,7 +623,7 @@ function connectToRoom(roomCode, password, nickname, isHost) {
 const publicRoomDirectory = new Map(); // roomCode -> { players, lastSeen, hasPassword }
 
 function connectToLobby() {
-  if (netState.lobbyRoom) return;
+  if (netState.lobbyRoom || !joinRoom) return;
   const lobby = joinRoom({ appId: APP_ID }, LOBBY_ROOM_ID);
   netState.lobbyRoom = lobby;
   const pingAction = lobby.makeAction('roomping');
@@ -764,7 +777,14 @@ document.getElementById('btnDoJoin').addEventListener('click', () => {
   statusEl.textContent = 'Connecting…';
   statusEl.className = 'menuStatus';
 
-  const room = connectToRoom(code, password, nick, false);
+  let room;
+  try {
+    room = connectToRoom(code, password, nick, false);
+  } catch (err) {
+    statusEl.textContent = "Couldn't connect: " + err.message;
+    statusEl.className = 'menuStatus err';
+    return;
+  }
 
   // No central server means no instant "wrong password" rejection message —
   // a wrong password silently lands you in an empty, different swarm. We
@@ -810,7 +830,14 @@ document.getElementById('btnDoHost').addEventListener('click', () => {
 
   saveNickname(nick);
   const code = randomRoomCode();
-  connectToRoom(code, password, nick, true);
+  const statusEl = document.getElementById('hostStatus');
+  try {
+    connectToRoom(code, password, nick, true);
+  } catch (err) {
+    statusEl.textContent = "Couldn't host: " + err.message;
+    statusEl.className = 'menuStatus err';
+    return;
+  }
   netState.__hasPassword = usePassword;
 
   document.getElementById('hostedRoomCode').innerHTML = `${escapeHtmlMenu(code)}<span class="hint">Tap to copy • share this so friends can join${usePassword ? ' (they\'ll need the password too)' : ''}</span>`;
