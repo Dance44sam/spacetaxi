@@ -466,22 +466,7 @@
    just means: generate a room id, optionally derive it from a password,
    and open a WebRTC swarm that other browsers can join directly.
    ========================================================================= */
-// Pinned to a known-good version. Unpinned "@latest" CDN imports (the
-// previous version of this file used one implicitly) can silently start
-// failing if the package publishes a breaking change — and because this is
-// a <script type="module">, a failed import kills the ENTIRE script, which
-// is why "Host a Server" looked completely dead with no error on screen.
-let joinRoom;
-let trysteroLoadError = null;
-try {
-  ({ joinRoom } = await import('https://esm.run/@trystero-p2p/torrent@0.20.0'));
-  if (typeof joinRoom !== 'function') {
-    throw new Error('joinRoom was not exported by the Trystero build that loaded.');
-  }
-} catch (err) {
-  trysteroLoadError = err;
-  console.error('[TinyPlanetsTaxi] Failed to load Trystero networking library:', err);
-}
+import { joinRoom, selfId } from 'https://esm.run/trystero/torrent';
 
 const APP_ID = 'tiny-planets-taxi-v1';
 const LOBBY_ROOM_ID = 'tiny-planets-taxi-public-lobby';
@@ -553,11 +538,6 @@ function leaveCurrentRoom() {
 window.__netState = netState;
 
 function connectToRoom(roomCode, password, nickname, isHost) {
-  if (trysteroLoadError || typeof joinRoom !== 'function') {
-    console.error('[TinyPlanetsTaxi] Cannot connect: networking library did not load.', trysteroLoadError);
-    return null;
-  }
-
   leaveCurrentRoom();
   netState.mode = 'multiplayer';
   netState.roomCode = roomCode;
@@ -565,14 +545,7 @@ function connectToRoom(roomCode, password, nickname, isHost) {
   netState.isHost = isHost;
 
   const trysteroId = deriveTrysteroRoomId(roomCode, password);
-  let room;
-  try {
-    room = joinRoom({ appId: APP_ID }, trysteroId);
-  } catch (err) {
-    console.error('[TinyPlanetsTaxi] joinRoom() threw:', err);
-    netState.mode = 'singleplayer';
-    return null;
-  }
+  const room = joinRoom({ appId: APP_ID }, trysteroId);
   netState.room = room;
 
   const stateAction = room.makeAction('state');
@@ -638,14 +611,7 @@ const publicRoomDirectory = new Map(); // roomCode -> { players, lastSeen, hasPa
 
 function connectToLobby() {
   if (netState.lobbyRoom) return;
-  if (trysteroLoadError || typeof joinRoom !== 'function') return;
-  let lobby;
-  try {
-    lobby = joinRoom({ appId: APP_ID }, LOBBY_ROOM_ID);
-  } catch (err) {
-    console.error('[TinyPlanetsTaxi] Failed to join public lobby:', err);
-    return;
-  }
+  const lobby = joinRoom({ appId: APP_ID }, LOBBY_ROOM_ID);
   netState.lobbyRoom = lobby;
   const pingAction = lobby.makeAction('roomping');
   netState.sendLobbyPing = pingAction.send;
@@ -800,14 +766,6 @@ document.getElementById('btnDoJoin').addEventListener('click', () => {
 
   const room = connectToRoom(code, password, nick, false);
 
-  if (!room) {
-    statusEl.textContent = trysteroLoadError
-      ? "Couldn't start the networking layer (it may be blocked by your network/adblocker, or the CDN is down). Check the browser console for details."
-      : "Couldn't join the room. Check the browser console for details and try again.";
-    statusEl.className = 'menuStatus err';
-    return;
-  }
-
   // No central server means no instant "wrong password" rejection message —
   // a wrong password silently lands you in an empty, different swarm. We
   // give it a few seconds to find at least one peer before calling it out.
@@ -852,17 +810,7 @@ document.getElementById('btnDoHost').addEventListener('click', () => {
 
   saveNickname(nick);
   const code = randomRoomCode();
-  const room = connectToRoom(code, password, nick, true);
-
-  if (!room) {
-    const statusEl = document.getElementById('hostStatus');
-    statusEl.textContent = trysteroLoadError
-      ? "Couldn't start the networking layer (it may be blocked by your network/adblocker, or the CDN is down). Check the browser console for details."
-      : "Couldn't create the room. Check the browser console for details and try again.";
-    statusEl.className = 'menuStatus err';
-    return;
-  }
-
+  connectToRoom(code, password, nick, true);
   netState.__hasPassword = usePassword;
 
   document.getElementById('hostedRoomCode').innerHTML = `${escapeHtmlMenu(code)}<span class="hint">Tap to copy • share this so friends can join${usePassword ? ' (they\'ll need the password too)' : ''}</span>`;
