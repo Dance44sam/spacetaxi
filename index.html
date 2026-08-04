@@ -149,8 +149,17 @@
     font-size: 12px; background: rgba(10,15,35,0.6); padding: 10px 14px; border-radius: 14px;
     line-height: 1.8; pointer-events: none; user-select: none; border: 2px solid rgba(140,180,255,0.35);
   }
+  /* ---- Top-right UI stack: a single flex column anchored to the
+     corner so items space themselves out automatically and never rely
+     on hardcoded pixel offsets from each other. Scales with viewport
+     via clamp() instead of fixed px so it holds up across resolutions. ---- */
+  #topRightStack {
+    position: fixed; top: max(10px, 1.4vh); right: max(10px, 1.2vw); z-index: 7;
+    display: flex; flex-direction: column; align-items: flex-end;
+    gap: clamp(6px, 1vh, 10px); pointer-events: none;
+  }
+  #topRightStack > * { pointer-events: auto; }
   #multiplayerToggle {
-    position: fixed; top: 130px; right: 56px; z-index: 7; pointer-events: auto;
     padding: 8px 12px; border-radius: 999px; border: 2px solid rgba(140,180,255,0.5);
     background: rgba(10,15,35,0.75); color: #eef4ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
     font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 7px;
@@ -159,16 +168,30 @@
   #multiplayerToggle .dot { width: 8px; height: 8px; border-radius: 50%; background: #7fe0a0; box-shadow: 0 0 8px rgba(127,224,160,0.8); }
   #multiplayerToggle.offline .dot { background: #8a94ac; box-shadow: none; }
   #menuReturnBtn {
-    position: fixed; top: 170px; right: 56px; z-index: 7; pointer-events: auto;
     padding: 8px 12px; border-radius: 999px; border: 2px solid rgba(140,180,255,0.5);
     background: rgba(10,15,35,0.75); color: #eef4ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
     font-weight: bold; font-size: 12px; cursor: pointer;
   }
+  #chatToggle {
+    padding: 8px 12px; border-radius: 999px; border: 2px solid rgba(140,180,255,0.5);
+    background: rgba(10,15,35,0.75); color: #eef4ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
+    font-weight: bold; font-size: 12px; cursor: pointer; display: none; align-items: center; gap: 6px;
+  }
+  #chatToggle.hasUnread { border-color: rgba(255,220,140,0.8); color: #ffe27a; }
+  #chatToggle .unreadDot {
+    width: 7px; height: 7px; border-radius: 50%; background: #ffe27a; box-shadow: 0 0 6px rgba(255,220,140,0.8);
+    display: none;
+  }
+  #chatToggle.hasUnread .unreadDot { display: inline-block; }
+  /* .mpActive is added/removed in JS instead of inline styles, so it
+     composes correctly with the display:flex the media query below adds
+     on mobile (an inline style would win specificity over the query). */
+  #chatToggle.mpActive { display: none; }
   @media (max-width: 900px) {
-    #menuReturnBtn { top: auto; right: auto; left: 10px; bottom: 660px; }
+    #menuReturnBtn { position: fixed; top: auto; right: auto; left: max(10px, 1.2vw); bottom: 62vh; }
+    #chatToggle.mpActive { display: flex; }
   }
   #helpToggle {
-    position: fixed; top: 10px; right: 10px; z-index: 7; pointer-events: auto;
     width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(140,180,255,0.5);
     background: rgba(10,15,35,0.75); color: #ffe27a; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
     font-weight: bold; font-size: 16px; display: none; align-items: center; justify-content: center;
@@ -266,8 +289,8 @@
 
   /* ---- Mobile zoom controls: vertical +/- pair, top-right under helpToggle ---- */
   #zoomControls {
-    position: fixed; top: 54px; right: 10px; z-index: 7; pointer-events: none;
-    display: none; flex-direction: column; gap: 8px;
+    position: fixed; top: max(54px, 6vh); right: max(10px, 1.2vw); z-index: 7; pointer-events: none;
+    display: none; flex-direction: column; gap: clamp(6px, 1vh, 10px);
   }
   .zoomButton {
     width: 40px; height: 40px; border-radius: 12px; border: 2px solid rgba(140,180,255,0.5);
@@ -282,21 +305,25 @@
     #legend { display: none; }
     #helpToggle { display: flex; }
     #zoomControls { display: flex; }
-    #minimap { bottom: 200px; right: 12px; }
+    #minimap { bottom: 26vh; right: 12px; }
     #mobileControls { display: block; }
     #startScreen p { max-width: 90vw; }
     #startScreen .go { width: auto; padding: 12px 24px; }
-    #msg { bottom: 200px; }
+    #msg { bottom: 26vh; }
+    #topRightStack { top: auto; right: auto; left: max(10px, 1.2vw); bottom: 68vh; align-items: flex-start; }
     #multiplayerToggle {
-      top: auto;
-      right: auto;
-      left: 10px;
-      bottom: 700px;
       z-index: 13;
       padding: 7px 10px;
       font-size: 11px;
     }
-    #chatPanel { left: 10px; right: 10px; width: auto; bottom: 140px; max-height: 28vh; }
+    /* Chat defaults CLOSED on mobile (toggled via #chatToggle) so it never
+       sits on top of the touch controls uninvited. Position/size scale
+       with viewport height rather than a fixed px offset. */
+    #chatPanel {
+      left: 10px; right: 10px; width: auto; bottom: 18vh; max-height: 30vh;
+      display: none !important;
+    }
+    #chatPanel.mobileOpen { display: flex !important; }
   }
   @media (max-width: 600px) {
     .controlButton { width: 50px; height: 50px; font-size: 20px; }
@@ -314,7 +341,7 @@
     .controlButton { width: 42px; height: 42px; }
     .controlButton.boost { width: 58px; height: 58px; font-size: 11px; }
     #msg { bottom: 8px; font-size: clamp(11px, 2vh, 14px); }
-    #chatPanel { bottom: 8px; max-height: 40vh; }
+    #chatPanel { bottom: 8px; max-height: 45vh; }
   }
 </style>
 <base target="_blank">
@@ -424,9 +451,12 @@
   <span style="color:#c9a86b">●</span> Hearth &nbsp; <span style="color:#7fb8d6">●</span> Aequor<br>
   <span style="color:#c98aa8">●</span> Ferrugo &nbsp; <span style="color:#8fc97a">●</span> Musco
 </div>
-<div id="multiplayerToggle" class="offline"><span class="dot"></span> <span id="multiplayerStatusText">Singleplayer</span></div>
-<button id="helpToggle">?</button>
-<button id="menuReturnBtn" type="button" title="Back to Main Menu">☰ Menu</button>
+<div id="topRightStack">
+  <button id="helpToggle">?</button>
+  <div id="multiplayerToggle" class="offline"><span class="dot"></span> <span id="multiplayerStatusText">Singleplayer</span></div>
+  <button id="chatToggle" type="button" title="Toggle chat">💬 Chat<span class="unreadDot"></span></button>
+  <button id="menuReturnBtn" type="button" title="Back to Main Menu">☰ Menu</button>
+</div>
 <div id="chatPanel">
   <div id="chatHeader">
     <span>🗨️ Taxi Chat</span>
@@ -1030,6 +1060,8 @@ document.getElementById('menuReturnBtn').addEventListener('click', () => {
   mainMenuEl.classList.remove('hidden');
   showMenuPanel(menuRoot);
   document.getElementById('chatPanel').style.display = 'none';
+  document.getElementById('chatPanel').classList.remove('mobileOpen');
+  document.getElementById('chatToggle').classList.remove('mpActive', 'hasUnread');
   window.__gameStarted = false;
 });
 
@@ -1041,12 +1073,15 @@ function enterGame() {
     statusText.textContent = `Room: ${netState.roomCode}`;
     pill.classList.remove('offline');
     document.getElementById('chatPanel').style.display = 'flex';
+    document.getElementById('chatPanel').classList.remove('mobileOpen');
+    document.getElementById('chatToggle').classList.add('mpActive');
     const chatStatusInit = document.getElementById('chatStatus');
     if (chatStatusInit) chatStatusInit.textContent = netState.peers.size > 0 ? 'Online' : 'Waiting for others…';
   } else {
     statusText.textContent = 'Singleplayer';
     pill.classList.add('offline');
     document.getElementById('chatPanel').style.display = 'none';
+    document.getElementById('chatToggle').classList.remove('mpActive');
   }
   startScreenEl.style.display = 'flex';
   window.__gameStarted = true;
@@ -1071,6 +1106,25 @@ function enterGame() {
     nick: localStorage.getItem('tinyPlanetsNick') || '',
     messages: []
   };
+
+  // ---- Mobile chat toggle: chat panel is hidden by default on small
+  // screens (it can't overlap the touch controls) and opened on demand
+  // via the #chatToggle pill. Desktop is unaffected — .mobileOpen only
+  // does anything inside the max-width:900px media query.
+  const chatPanelEl = document.getElementById('chatPanel');
+  const chatToggleEl = document.getElementById('chatToggle');
+  let chatOpenMobile = false;
+  function setChatOpenMobile(open) {
+    chatOpenMobile = open;
+    chatPanelEl.classList.toggle('mobileOpen', open);
+    if (open) {
+      chatToggleEl.classList.remove('hasUnread');
+      chatInputEl && chatInputEl.focus({ preventScroll: true });
+    }
+  }
+  if (chatToggleEl) {
+    chatToggleEl.addEventListener('click', () => setChatOpenMobile(!chatOpenMobile));
+  }
 
   function escapeHtml(text) {
     return String(text)
@@ -1101,6 +1155,9 @@ function enterGame() {
     chatState.messages.push(payload);
     chatState.messages = chatState.messages.slice(-80);
     renderChat();
+    if (chatToggleEl && !chatOpenMobile) {
+      chatToggleEl.classList.add('hasUnread');
+    }
   }
 
   // Hooked up to the Trystero room set up in the module script above.
