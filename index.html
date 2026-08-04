@@ -461,25 +461,26 @@
 
 <script type="module">
 /* =========================================================================
-   NETWORKING LAYER (Trystero — WebRTC over public BitTorrent trackers)
+   NETWORKING LAYER (PeerJS — WebRTC via PeerJS's free public broker)
    No backend of ours is ever run or paid for. "Hosting a server" really
-   just means: generate a room id, optionally derive it from a password,
-   and open a WebRTC swarm that other browsers can join directly.
+   just means: the host's PeerJS ID is derived from the room code (and
+   password, if any), and joiners connect straight to that ID. The host
+   relays messages between everyone else (star topology), so from any
+   client's point of view it still looks like one flat list of peers —
+   the same shape the rest of this file expects.
    ========================================================================= */
-let joinRoom = null;
-let selfId = null;
-let trysteroLoadError = null;
+let Peer = null;
+let peerLoadError = null;
 try {
-  const trystero = await import('https://esm.run/trystero/torrent');
-  joinRoom = trystero.joinRoom;
-  selfId = trystero.selfId;
+  const mod = await import('https://esm.sh/peerjs@1.5.4?bundle');
+  Peer = mod.Peer || mod.default;
 } catch (err) {
-  trysteroLoadError = err;
-  console.error('[TinyPlanetsTaxi] Failed to load Trystero networking library:', err);
+  peerLoadError = err;
+  console.error('[TinyPlanetsTaxi] Failed to load PeerJS networking library:', err);
 }
 
 const APP_ID = 'tiny-planets-taxi-v1';
-const LOBBY_ROOM_ID = 'tiny-planets-taxi-public-lobby';
+const LOBBY_HOST_ID_BASE = 'tptaxi-lobby-v1';
 
 const netState = {
   mode: 'singleplayer',   // 'singleplayer' | 'multiplayer'
@@ -508,10 +509,10 @@ function randomRoomCode() {
   return `${a}-${n}-${num}`;
 }
 
-// Simple string hash (djb2) — used only to derive a namespaced room id from
-// a password, so a wrong password lands you in a different, empty swarm
-// rather than the real room. This is the closest "real gate" achievable
-// with no server: the password becomes part of the room's identity.
+// Simple string hash (djb2) — used to derive a PeerJS id from a room code
+// (and password, if any) that's safe as an id (PeerJS ids are restricted
+// to a limited charset) and namespaced so a wrong password can't collide
+// with the real room's id.
 function hashString(str) {
   let hash = 5381;
   for (let i = 0; i < str.length; i++) {
@@ -521,11 +522,9 @@ function hashString(str) {
   return (hash >>> 0).toString(36);
 }
 
-function deriveTrysteroRoomId(roomCode, password) {
-  if (password && password.length > 0) {
-    return `${roomCode}__pw_${hashString(password)}`;
-  }
-  return `${roomCode}__nopw`;
+function deriveHostPeerId(roomCode, password) {
+  const salted = password && password.length > 0 ? `${roomCode}::pw::${password}` : `${roomCode}::nopw`;
+  return `${APP_ID}-${hashString(salted)}`;
 }
 
 function leaveCurrentRoom() {
@@ -547,8 +546,120 @@ function leaveCurrentRoom() {
 // `import`. window.__netState mirrors this module's netState object.
 window.__netState = netState;
 
+/* -------------------------------------------------------------------------
+   makeRoom(): wraps PeerJS's Peer/DataConnection API into the same small
+   "room" interface the rest of this file was written against:
+     room.makeAction(name) -> { send(data, targetId?), onMessage }
+     room.onPeerJoin(cb) / room.onPeerLeave(cb)
+     room.leave()
+   Internally, the host keeps a direct DataConnection to every joiner and
+   relays each message to all other joiners, so every client ends up with
+   the same view of "who's here" regardless of who they physically connect
+   to. Joiners only ever hold one connection: to the host.
+   ------------------------------------------------------------------------- */
+function makeRoom(peer, isHost) {
+  const conns = new Map(); // peerId -> DataConnection
+  const actionHandlers = new Map(); // actionName -> onMessage fn
+  const joinCbs = [];
+  const leaveCbs = [];
+
+  function wireConnection(conn) {
+    conn.on('data', payload => {
+      if (!payload || typeof payload !== 'object') return;
+      const { __action, __data, __from } = payload;
+      if (!__action) return;
+      const originId = __from || conn.peer;
+
+      // Host relays to everyone else so the mesh looks flat to all peers.
+      if (isHost) {
+        for (const [otherId, otherConn] of conns) {
+          if (otherId !== originId && otherConn.open) {
+            otherConn.send({ __action, __data, __from: originId });
+          }
+        }
+      }
+
+      const handler = actionHandlers.get(__action);
+      if (handler) handler(__data, originId);
+    });
+
+    conn.on('close', () => {
+      if (!conns.has(conn.peer)) return;
+      conns.delete(conn.peer);
+      leaveCbs.forEach(cb => cb(conn.peer));
+    });
+
+    conn.on('error', () => {
+      if (!conns.has(conn.peer)) return;
+      conns.delete(conn.peer);
+      leaveCbs.forEach(cb => cb(conn.peer));
+    });
+  }
+
+  if (isHost) {
+    peer.on('connection', conn => {
+      conn.on('open', () => {
+        conns.set(conn.peer, conn);
+        wireConnection(conn);
+        joinCbs.forEach(cb => cb(conn.peer));
+      });
+    });
+  } else {
+    // Joiner: dial the host directly. peer.__hostConn is set by connectToRoom.
+  }
+
+  return {
+    _conns: conns,
+    _registerJoinerConn(conn) {
+      conns.set(conn.peer, conn);
+      wireConnection(conn);
+      joinCbs.forEach(cb => cb(conn.peer));
+    },
+    makeAction(name) {
+      const send = (data, targetId) => {
+        const payload = { __action: name, __data: data, __from: peer.id };
+        if (targetId) {
+          const c = conns.get(targetId);
+          if (c && c.open) c.send(payload);
+          return;
+        }
+        for (const c of conns.values()) {
+          if (c.open) c.send(payload);
+        }
+      };
+      const actionObj = { send };
+      Object.defineProperty(actionObj, 'onMessage', {
+        set(fn) { actionHandlers.set(name, fn); },
+        get() { return actionHandlers.get(name); }
+      });
+      return actionObj;
+    },
+    onPeerJoin(cb) { joinCbs.push(cb); },
+    onPeerLeave(cb) { leaveCbs.push(cb); },
+    leave() {
+      for (const c of conns.values()) { try { c.close(); } catch (e) {} }
+      conns.clear();
+      try { peer.destroy(); } catch (e) {}
+    }
+  };
+}
+
+function waitForOpen(peer) {
+  return new Promise((resolve, reject) => {
+    if (peer.open) { resolve(); return; }
+    const onOpen = () => { cleanup(); resolve(); };
+    const onErr = err => { cleanup(); reject(err); };
+    function cleanup() {
+      peer.off('open', onOpen);
+      peer.off('error', onErr);
+    }
+    peer.on('open', onOpen);
+    peer.on('error', onErr);
+  });
+}
+
 function connectToRoom(roomCode, password, nickname, isHost) {
-  if (!joinRoom) {
+  if (!Peer) {
     throw new Error('Networking library did not load. Check your connection and try again.');
   }
   leaveCurrentRoom();
@@ -557,8 +668,10 @@ function connectToRoom(roomCode, password, nickname, isHost) {
   netState.nickname = nickname;
   netState.isHost = isHost;
 
-  const trysteroId = deriveTrysteroRoomId(roomCode, password);
-  const room = joinRoom({ appId: APP_ID }, trysteroId);
+  const hostId = deriveHostPeerId(roomCode, password);
+  const myId = isHost ? hostId : `${hostId}-p${Math.random().toString(36).slice(2, 9)}`;
+  const peer = new Peer(myId, { debug: 0 });
+  const room = makeRoom(peer, isHost);
   netState.room = room;
 
   const stateAction = room.makeAction('state');
@@ -573,21 +686,22 @@ function connectToRoom(roomCode, password, nickname, isHost) {
   window.__netSendChat = chatAction.send;
   window.__netSendEconomy = economyAction.send;
 
-  room.onPeerJoin(peerId => {
+  function onAnyPeerJoin(peerId) {
     netState.peers.set(peerId, { name: 'Pilot', x: 0, y: 0, angle: 0, credits: 0, ts: performance.now() });
-    joinInfoAction.send({ name: netState.nickname });
+    joinInfoAction.send({ name: netState.nickname }, peerId);
     if (typeof window.__onMultiplayerChatSystem === 'function') {
       window.__onMultiplayerChatSystem(`A pilot connected.`);
     }
-  });
-
-  room.onPeerLeave(peerId => {
+  }
+  function onAnyPeerLeave(peerId) {
     const p = netState.peers.get(peerId);
     netState.peers.delete(peerId);
     if (typeof window.__onMultiplayerChatSystem === 'function') {
       window.__onMultiplayerChatSystem(`${p ? p.name : 'A pilot'} disconnected.`);
     }
-  });
+  }
+  room.onPeerJoin(onAnyPeerJoin);
+  room.onPeerLeave(onAnyPeerLeave);
 
   joinInfoAction.onMessage = (data, peerId) => {
     const p = netState.peers.get(peerId);
@@ -614,22 +728,65 @@ function connectToRoom(roomCode, password, nickname, isHost) {
     }
   };
 
+  waitForOpen(peer).then(() => {
+    if (!isHost) {
+      const conn = peer.connect(hostId, { reliable: true });
+      conn.on('open', () => {
+        room._registerJoinerConn(conn);
+      });
+      conn.on('error', () => {
+        if (typeof window.__onMultiplayerChatSystem === 'function') {
+          window.__onMultiplayerChatSystem('Could not reach that room. Check the code and password.');
+        }
+      });
+    }
+  }).catch(() => {
+    if (typeof window.__onMultiplayerChatSystem === 'function') {
+      window.__onMultiplayerChatSystem('Connection failed. Check your internet connection.');
+    }
+  });
+
   return room;
 }
 
-// ---- Public lobby: a well-known shared room that hosts can optionally
-// announce themselves into, so "Multiplayer Servers" can show a live list
-// without any central list-server. Purely peer-announced, best-effort.
+// ---- Public lobby: a well-known host that hosts can optionally announce
+// themselves into, so "Multiplayer Servers" can show a live list without
+// any central list-server of our own. Purely peer-announced, best-effort;
+// the lobby "host" is just whichever client claims the well-known id first.
 const publicRoomDirectory = new Map(); // roomCode -> { players, lastSeen, hasPassword }
+let lobbyPeer = null;
+let lobbyRoomObj = null;
+let lobbyIsHost = false;
 
 function connectToLobby() {
-  if (netState.lobbyRoom || !joinRoom) return;
-  const lobby = joinRoom({ appId: APP_ID }, LOBBY_ROOM_ID);
-  netState.lobbyRoom = lobby;
-  const pingAction = lobby.makeAction('roomping');
+  if (netState.lobbyRoom || !Peer) return;
+
+  // Try to become the lobby host; if that id is taken, join as a client.
+  const probe = new Peer(LOBBY_HOST_ID_BASE, { debug: 0 });
+  probe.on('open', () => {
+    lobbyPeer = probe;
+    lobbyIsHost = true;
+    setupLobbyRoom(true);
+  });
+  probe.on('error', err => {
+    if (String(err && err.type) === 'unavailable-id') {
+      lobbyPeer = new Peer({ debug: 0 });
+      lobbyPeer.on('open', () => {
+        lobbyIsHost = false;
+        setupLobbyRoom(false);
+      });
+    }
+  });
+}
+
+function setupLobbyRoom(isHost) {
+  const room = makeRoom(lobbyPeer, isHost);
+  lobbyRoomObj = room;
+  netState.lobbyRoom = room;
+  const pingAction = room.makeAction('roomping');
   netState.sendLobbyPing = pingAction.send;
 
-  pingAction.onMessage = (data, peerId) => {
+  pingAction.onMessage = (data) => {
     if (!data || !data.roomCode) return;
     publicRoomDirectory.set(data.roomCode, {
       players: data.players || 1,
@@ -639,11 +796,17 @@ function connectToLobby() {
     if (typeof window.__onRoomListUpdate === 'function') window.__onRoomListUpdate();
   };
 
-  lobby.onPeerJoin(() => {
-    if (netState.mode === 'multiplayer' && netState.isHost && netState.roomCode) {
-      announceHostedRoom();
-    }
-  });
+  if (!isHost) {
+    waitForOpen(lobbyPeer).then(() => {
+      const conn = lobbyPeer.connect(LOBBY_HOST_ID_BASE, { reliable: true });
+      conn.on('open', () => {
+        room._registerJoinerConn(conn);
+        if (netState.mode === 'multiplayer' && netState.isHost && netState.roomCode) {
+          announceHostedRoom();
+        }
+      });
+    });
+  }
 }
 
 let lobbyAnnounceTimer = null;
@@ -658,7 +821,7 @@ function announceHostedRoom() {
 function startAnnouncing() {
   connectToLobby();
   if (lobbyAnnounceTimer) clearInterval(lobbyAnnounceTimer);
-  announceHostedRoom();
+  setTimeout(() => announceHostedRoom(), 800);
   lobbyAnnounceTimer = setInterval(announceHostedRoom, 4000);
 }
 function stopAnnouncing() {
