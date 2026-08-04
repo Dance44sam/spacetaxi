@@ -167,11 +167,6 @@
   #multiplayerToggle.active { background: rgba(83,146,255,0.35); color: #fff; border-color: rgba(255,220,140,0.6); }
   #multiplayerToggle .dot { width: 8px; height: 8px; border-radius: 50%; background: #7fe0a0; box-shadow: 0 0 8px rgba(127,224,160,0.8); }
   #multiplayerToggle.offline .dot { background: #8a94ac; box-shadow: none; }
-  #menuReturnBtn {
-    padding: 8px 12px; border-radius: 999px; border: 2px solid rgba(140,180,255,0.5);
-    background: rgba(10,15,35,0.75); color: #eef4ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
-    font-weight: bold; font-size: 12px; cursor: pointer;
-  }
   #chatToggle {
     padding: 8px 12px; border-radius: 999px; border: 2px solid rgba(140,180,255,0.5);
     background: rgba(10,15,35,0.75); color: #eef4ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
@@ -188,13 +183,15 @@
      on mobile (an inline style would win specificity over the query). */
   #chatToggle.mpActive { display: none; }
   @media (max-width: 900px) {
-    #menuReturnBtn { position: fixed; top: auto; right: auto; left: max(10px, 1.2vw); bottom: 62vh; }
     #chatToggle.mpActive { display: flex; }
   }
+  /* Same 34px circular footprint it had as the "?" help button —
+     now doubles as the back-to-menu control on both desktop and mobile. */
   #helpToggle {
     width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(140,180,255,0.5);
     background: rgba(10,15,35,0.75); color: #ffe27a; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
-    font-weight: bold; font-size: 16px; display: none; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 16px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
   }
   #chatPanel {
     position: fixed; left: 12px; bottom: 12px; width: min(340px, calc(100vw - 24px));
@@ -303,7 +300,6 @@
   @media (max-width: 900px) {
     #hud { max-width: 92vw; }
     #legend { display: none; }
-    #helpToggle { display: flex; }
     #zoomControls { display: flex; }
     #minimap { bottom: 26vh; right: 12px; }
     #mobileControls { display: block; }
@@ -452,10 +448,9 @@
   <span style="color:#c98aa8">●</span> Ferrugo &nbsp; <span style="color:#8fc97a">●</span> Musco
 </div>
 <div id="topRightStack">
-  <button id="helpToggle">?</button>
+  <button id="helpToggle" title="Back to Main Menu">☰</button>
   <div id="multiplayerToggle" class="offline"><span class="dot"></span> <span id="multiplayerStatusText">Singleplayer</span></div>
   <button id="chatToggle" type="button" title="Toggle chat">💬 Chat<span class="unreadDot"></span></button>
-  <button id="menuReturnBtn" type="button" title="Back to Main Menu">☰ Menu</button>
 </div>
 <div id="chatPanel">
   <div id="chatHeader">
@@ -1053,7 +1048,7 @@ document.getElementById('hostedRoomCode').addEventListener('click', () => {
 
 document.getElementById('btnEnterGameHosted').addEventListener('click', () => enterGame());
 
-document.getElementById('menuReturnBtn').addEventListener('click', () => {
+document.getElementById('helpToggle').addEventListener('click', () => {
   leaveCurrentRoom();
   stopAnnouncing();
   netState.mode = 'singleplayer';
@@ -1083,7 +1078,7 @@ function enterGame() {
     document.getElementById('chatPanel').style.display = 'none';
     document.getElementById('chatToggle').classList.remove('mpActive');
   }
-  startScreenEl.style.display = 'flex';
+  startScreenEl.style.display = window.matchMedia('(max-width: 900px)').matches ? 'flex' : 'none';
   window.__gameStarted = true;
 }
 </script>
@@ -1581,11 +1576,6 @@ function enterGame() {
   const startScreen = document.getElementById('startScreen');
   startScreen.addEventListener('click', () => {
     startScreen.style.display = 'none';
-  });
-
-  const helpToggle = document.getElementById('helpToggle');
-  helpToggle.addEventListener('click', () => {
-    startScreen.style.display = 'flex';
   });
 
   const ZOOM_STEP_PER_SEC = 1.6;
