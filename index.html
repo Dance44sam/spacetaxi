@@ -138,6 +138,53 @@
     box-shadow: 0 0 18px rgba(255,220,120,0.5);
   }
   #startScreen { touch-action: none; }
+  /* ---- Upgrade shop: a small pill button appears above the HUD only
+     while landed at a station, opening a centered panel styled to match
+     the main menu's dark glassy panels. ---- */
+  #shopButton {
+    position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 8; padding: 9px 18px; border-radius: 999px; border: 2px solid rgba(255,220,140,0.55);
+    background: rgba(255,226,122,0.22); color: #ffe8b0; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
+    font-weight: bold; font-size: clamp(12px, 2.2vw, 15px); cursor: pointer;
+    box-shadow: 0 0 16px rgba(255,220,120,0.35); animation: shopPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes shopPulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(255,220,120,0.3); }
+    50% { box-shadow: 0 0 20px rgba(255,220,120,0.6); }
+  }
+  #shopPanel {
+    position: fixed; inset: 0; z-index: 21; background: rgba(5,7,14,0.72);
+    display: flex; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
+  }
+  .shopInner {
+    background: rgba(12,18,36,0.95); border: 2px solid rgba(140,180,255,0.35);
+    border-radius: 20px; padding: 20px 22px; width: min(440px, 92vw); max-height: 82vh; overflow-y: auto;
+    box-sizing: border-box; color: #e8f0ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
+  }
+  #shopHeader {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+  }
+  #shopTitle { color: #ffe27a; font-weight: bold; font-size: 18px; letter-spacing: 0.5px; }
+  #shopClose {
+    width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(140,180,255,0.5);
+    background: rgba(255,255,255,0.08); color: #eef4ff; font-weight: bold; cursor: pointer;
+  }
+  #shopCredits { color: #a6f5b4; font-size: 14px; margin-bottom: 14px; font-weight: bold; }
+  .shopRow {
+    background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 14px;
+    padding: 12px 14px; margin-bottom: 10px;
+  }
+  .shopRow:last-child { margin-bottom: 0; }
+  .shopRowHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .shopRowName { font-weight: bold; color: #ffe8b0; font-size: 14px; }
+  .shopRowLevel { font-size: 11px; color: #9ad0ff; }
+  .shopRowDesc { font-size: 12px; color: #cfe0ff; opacity: 0.85; margin-bottom: 8px; }
+  .shopBuyBtn {
+    width: 100%; box-sizing: border-box; padding: 8px; border-radius: 10px; border: none; cursor: pointer;
+    background: #ffe27a; color: #05070c; font-family: inherit; font-weight: bold; font-size: 13px;
+  }
+  .shopBuyBtn:disabled { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.4); cursor: default; }
+  .shopMaxed { text-align: center; font-size: 12px; color: #a6f5b4; padding: 6px; font-weight: bold; }
   #minimap {
     position: fixed; bottom: 12px; right: 12px;
     width: clamp(120px, 16vw, 190px); height: clamp(120px, 16vw, 190px);
@@ -450,6 +497,17 @@
 </div>
 <div id="hud"></div>
 <div id="msg"></div>
+<button id="shopButton" type="button" style="display:none;">🛠️ Upgrades</button>
+<div id="shopPanel" style="display:none;">
+  <div class="shopInner">
+    <div id="shopHeader">
+      <span id="shopTitle">🛠️ Taxi Upgrades</span>
+      <button id="shopClose" type="button" title="Close">✕</button>
+    </div>
+    <div id="shopCredits">💰 Credits: <b id="shopCreditsAmount">0</b></div>
+    <div id="shopList"></div>
+  </div>
+</div>
 <div id="topRightStack">
   <div id="multiplayerToggle" class="offline"><span class="dot"></span> <span id="multiplayerStatusText">🧑‍🚀 Singleplayer</span></div>
   <button id="helpToggle" title="Back to Main Menu">☰</button>
@@ -1573,7 +1631,7 @@ function enterGame() {
     turnSpeed: 2.4,
     fuel: 100,
     maxFuel: 100,
-    fuelBurnRate: 6,
+    fuelBurnRate: 11,
     safeLandingSpeed: 260,
     cooked: false,
     landed: false,
@@ -1584,6 +1642,172 @@ function enterGame() {
     fueledUpMsgShown: false,
     tripsCompleted: 0
   };
+  let landedStationPlanet = null;
+
+  // ---- Upgrades: each stat has a list of tiers. Level 0 is the ship's
+  // base stat (already set above); buying a tier applies its stat value
+  // and moves to the next tier. Costs scale up per tier so early upgrades
+  // are cheap and late ones are a real investment of fare money.
+  const UPGRADE_DEFS = {
+    thrust: {
+      label: 'Thrust', icon: '🚀',
+      tiers: [
+        { cost: 60,  value: 0.42, desc: 'Stronger main engine' },
+        { cost: 150, value: 0.58, desc: 'Reinforced engine mounts' },
+        { cost: 320, value: 0.78, desc: 'Twin-nozzle refit' }
+      ]
+    },
+    maxFuel: {
+      label: 'Fuel Tank', icon: '🛢️',
+      tiers: [
+        { cost: 50,  value: 140, desc: 'Auxiliary fuel cell' },
+        { cost: 130, value: 190, desc: 'Expanded tank' },
+        { cost: 280, value: 260, desc: 'Long-haul tank' }
+      ]
+    },
+    fuelBurnRate: {
+      label: 'Fuel Efficiency', icon: '⚡',
+      tiers: [
+        { cost: 55,  value: 8,   desc: 'Tuned injectors' },
+        { cost: 140, value: 5.5, desc: 'Efficient burn cycle' },
+        { cost: 300, value: 3.5, desc: 'High-efficiency drive' }
+      ]
+    },
+    maxSeats: {
+      label: 'Passenger Seats', icon: '🧑‍🤝‍🧑',
+      tiers: [
+        { cost: 90,  value: 4, desc: 'Add a fourth seat' },
+        { cost: 220, value: 5, desc: 'Add a fifth seat' },
+        { cost: 400, value: 6, desc: 'Full cabin refit' }
+      ]
+    }
+  };
+
+  function loadUpgradeLevels() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('tinyPlanetsUpgrades') || '{}');
+      const levels = {};
+      for (const key of Object.keys(UPGRADE_DEFS)) levels[key] = saved[key] || 0;
+      return levels;
+    } catch (e) {
+      const levels = {};
+      for (const key of Object.keys(UPGRADE_DEFS)) levels[key] = 0;
+      return levels;
+    }
+  }
+  const upgradeLevels = loadUpgradeLevels();
+
+  function applyUpgradeLevels() {
+    for (const key of Object.keys(UPGRADE_DEFS)) {
+      const level = upgradeLevels[key];
+      if (level > 0) {
+        const tier = UPGRADE_DEFS[key].tiers[level - 1];
+        if (tier) ship[key] = tier.value;
+      }
+    }
+    // Keep current fuel from exceeding a newly-changed max, and top off
+    // if the tank just got bigger so the upgrade feels immediately useful.
+    ship.fuel = Math.min(ship.fuel, ship.maxFuel);
+  }
+  applyUpgradeLevels();
+
+  function saveUpgradeLevels() {
+    localStorage.setItem('tinyPlanetsUpgrades', JSON.stringify(upgradeLevels));
+  }
+
+  function buyUpgrade(key) {
+    const def = UPGRADE_DEFS[key];
+    const level = upgradeLevels[key];
+    if (level >= def.tiers.length) return false; // maxed out
+    const tier = def.tiers[level];
+    if (ship.credits < tier.cost) return false;
+    ship.credits -= tier.cost;
+    localStorage.setItem('tinyPlanetsCredits', ship.credits);
+    upgradeLevels[key] = level + 1;
+    saveUpgradeLevels();
+    const wasMaxFuel = key === 'maxFuel';
+    applyUpgradeLevels();
+    if (wasMaxFuel) ship.fuel = ship.maxFuel; // refill so the bigger tank is immediately felt
+    return true;
+  }
+
+  // ---- Shop UI ----
+  const shopButtonEl = document.getElementById('shopButton');
+  const shopPanelEl = document.getElementById('shopPanel');
+  const shopListEl = document.getElementById('shopList');
+  const shopCreditsAmountEl = document.getElementById('shopCreditsAmount');
+  let shopButtonVisible = false;
+  let shopOpen = false;
+
+  function updateShopButtonVisibility() {
+    const shouldShow = !!landedStationPlanet && window.__gameStarted && !shopOpen;
+    if (shouldShow === shopButtonVisible) return; // avoid redundant DOM writes every frame
+    shopButtonVisible = shouldShow;
+    shopButtonEl.style.display = shouldShow ? 'block' : 'none';
+  }
+
+  function renderShopList() {
+    shopCreditsAmountEl.textContent = ship.credits;
+    shopListEl.innerHTML = Object.keys(UPGRADE_DEFS).map(key => {
+      const def = UPGRADE_DEFS[key];
+      const level = upgradeLevels[key];
+      const maxed = level >= def.tiers.length;
+      const levelLabel = `Lv. ${level}/${def.tiers.length}`;
+      if (maxed) {
+        return `
+          <div class="shopRow">
+            <div class="shopRowHead">
+              <span class="shopRowName">${def.icon} ${def.label}</span>
+              <span class="shopRowLevel">${levelLabel}</span>
+            </div>
+            <div class="shopMaxed">✅ Fully upgraded</div>
+          </div>`;
+      }
+      const tier = def.tiers[level];
+      const affordable = ship.credits >= tier.cost;
+      return `
+        <div class="shopRow">
+          <div class="shopRowHead">
+            <span class="shopRowName">${def.icon} ${def.label}</span>
+            <span class="shopRowLevel">${levelLabel}</span>
+          </div>
+          <div class="shopRowDesc">${tier.desc}</div>
+          <button class="shopBuyBtn" data-upgrade="${key}" ${affordable ? '' : 'disabled'}>
+            💰 Buy for ${tier.cost}
+          </button>
+        </div>`;
+    }).join('');
+
+    shopListEl.querySelectorAll('button[data-upgrade]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.upgrade;
+        if (buyUpgrade(key)) {
+          showMsg(`🛠️ ${UPGRADE_DEFS[key].label} upgraded!`, 2);
+          renderShopList();
+        }
+      });
+    });
+  }
+
+  function openShop() {
+    if (!landedStationPlanet) return;
+    shopOpen = true;
+    updateShopButtonVisibility();
+    renderShopList();
+    shopPanelEl.style.display = 'flex';
+  }
+
+  function closeShop() {
+    shopOpen = false;
+    shopPanelEl.style.display = 'none';
+    updateShopButtonVisibility();
+  }
+
+  shopButtonEl.addEventListener('click', openShop);
+  document.getElementById('shopClose').addEventListener('click', closeShop);
+  shopPanelEl.addEventListener('click', e => {
+    if (e.target === shopPanelEl) closeShop(); // click on the dim backdrop closes it
+  });
 
   function resetShip() {
     ship.x = 0; ship.y = -1250;
@@ -2004,6 +2228,7 @@ function enterGame() {
       ship.vy -= vDotN * ny * 1.2;
       ship.vx *= 0.9; ship.vy *= 0.9;
       ship.landed = true;
+      landedStationPlanet = nearest.station ? nearest : null;
 
       if (nearest.gasStation && ship.fuel < ship.maxFuel) {
         const refuelRate = 25;
@@ -2016,7 +2241,10 @@ function enterGame() {
       }
     } else {
       ship.landed = false;
+      landedStationPlanet = null;
     }
+
+    updateShopButtonVisibility();
 
     ship.trail.push({ x: ship.x, y: ship.y });
     if (ship.trail.length > 400) ship.trail.shift();
