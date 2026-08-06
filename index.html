@@ -93,7 +93,7 @@
     position: fixed; top: 10px; left: 10px; color: #e8f0ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
     font-size: clamp(11px, 1.8vw, 14px); background: rgba(10,15,35,0.6); padding: 12px 16px; border-radius: 14px;
     line-height: 1.6; pointer-events: none; user-select: none; border: 2px solid rgba(140,180,255,0.35);
-    max-width: min(94vw, 420px); box-sizing: border-box;
+    max-width: min(94vw, 420px); max-height: 80vh; overflow: hidden; box-sizing: border-box;
   }
   #hud b { color: #ffe27a; }
   #hud .statusBadge {
@@ -103,12 +103,12 @@
   #hud .statusFlying { background: rgba(120,180,255,0.25); color: #b8d8ff; }
   #hud .statusCooked { background: rgba(255,120,90,0.3); color: #ffb0a0; }
   #hud .fuelBarWrap {
-    width: 140px; height: 10px; background: rgba(255,255,255,0.12); border-radius: 6px; overflow: hidden;
+    width: clamp(64px, 22vw, 140px); height: 10px; background: rgba(255,255,255,0.12); border-radius: 6px; overflow: hidden;
     display: inline-block; vertical-align: middle; margin-left: 6px;
   }
   #hud .fuelBarFill { height: 100%; border-radius: 6px; transition: width 0.15s, background 0.15s; }
   #hud .hpBarWrap {
-    width: 140px; height: 10px; background: rgba(255,255,255,0.12); border-radius: 6px; overflow: hidden;
+    width: clamp(64px, 22vw, 140px); height: 10px; background: rgba(255,255,255,0.12); border-radius: 6px; overflow: hidden;
     display: inline-block; vertical-align: middle; margin-left: 6px;
   }
   #hud .hpBarFill { height: 100%; border-radius: 6px; background: #ff8aa8; transition: width 0.15s; }
@@ -143,11 +143,6 @@
     width: clamp(120px, 16vw, 190px); height: clamp(120px, 16vw, 190px);
     background: rgba(5,10,25,0.75); border: 2px solid rgba(140,180,255,0.4);
     border-radius: 14px; pointer-events: none; z-index: 5;
-  }
-  #legend {
-    position: fixed; top: 10px; right: 10px; color: #cfe0ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
-    font-size: 12px; background: rgba(10,15,35,0.6); padding: 10px 14px; border-radius: 14px;
-    line-height: 1.8; pointer-events: none; user-select: none; border: 2px solid rgba(140,180,255,0.35);
   }
   /* ---- Top-right UI stack: a single flex column anchored to the
      corner so items space themselves out automatically and never rely
@@ -193,6 +188,13 @@
     font-weight: bold; font-size: 16px; display: flex; align-items: center; justify-content: center;
     cursor: pointer;
   }
+  #musicToggle {
+    width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(140,180,255,0.5);
+    background: rgba(10,15,35,0.75); color: #ffe27a; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
+    font-weight: bold; font-size: 15px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: background 0.15s, opacity 0.15s;
+  }
+  #musicToggle.muted { color: rgba(255,255,255,0.5); opacity: 0.7; }
   #chatPanel {
     position: fixed; left: 12px; bottom: 12px; width: min(340px, calc(100vw - 24px));
     max-height: min(38vh, 320px); z-index: 14; display: none; flex-direction: column;
@@ -298,8 +300,7 @@
   .zoomButton.active { transform: scale(0.92); background: rgba(140,180,255,0.35); }
 
   @media (max-width: 900px) {
-    #hud { max-width: 92vw; }
-    #legend { display: none; }
+    #hud { max-width: min(92vw, calc(100vw - 74px)); }
     #zoomControls { display: flex; }
     #minimap { bottom: 26vh; right: 12px; }
     #mobileControls { display: block; }
@@ -331,27 +332,35 @@
   /* Short / landscape phones: mobile controls and HUD can collide with a
      short viewport height, so shrink and reflow rather than overlap. */
   @media (max-height: 480px) and (pointer: coarse) {
-    #hud { font-size: clamp(10px, 2.2vh, 13px); padding: 8px 10px; line-height: 1.4; }
+    #hud { font-size: clamp(10px, 2.2vh, 13px); padding: 8px 10px; line-height: 1.4; max-height: 60vh; }
     #minimap { display: none; }
     #mobileControls .zone { bottom: 8px; }
     .controlButton { width: 42px; height: 42px; }
     .controlButton.boost { width: 58px; height: 58px; font-size: 11px; }
     #msg { bottom: 8px; font-size: clamp(11px, 2vh, 14px); }
-    #chatPanel { bottom: 8px; max-height: 45vh; }
+    /* Reset the portrait-only 68vh offset: on a short/landscape phone that
+       value can land the stack mid-screen instead of in the corner, so
+       pin it back to the top-right corner (with room for the zoom column
+       stacked below it) and shrink the chat panel to match. */
+    #topRightStack { top: max(6px, 1vh); right: max(8px, 1vw); left: auto; bottom: auto; align-items: flex-end; }
+    #zoomControls { top: max(6px, 1vh); right: max(52px, 6vw); }
+    /* Keep chat narrow and centered instead of full-width so it can't sit
+       on top of the left/right thumb control zones when opened mid-flight. */
+    #chatPanel { bottom: 8px; max-height: 38vh; left: 50%; right: auto; width: min(320px, calc(100vw - 180px)); transform: translateX(-50%); }
   }
 </style>
 <base target="_blank">
 </head>
 <body>
 <div id="mainMenu">
-  <h1>🚕 TINY PLANETS TAXI 🌍</h1>
-  <div class="sub">30 tiny worlds, one taxi, endless fares</div>
+  <h1>🚀 TINY PLANETS TAXI</h1>
+  <div class="sub">30 small worlds. Fly passengers between them.</div>
 
   <!-- ROOT MENU -->
   <div class="menuPanel" id="menuRoot">
     <button class="menuBigBtn" id="btnSingleplayer">
       <span class="icon">🧑‍🚀</span>
-      <span class="txt">Singleplayer<small>Fly solo, no internet needed</small></span>
+      <span class="txt">Singleplayer<small>No internet required</small></span>
     </button>
     <button class="menuBigBtn" id="btnMultiplayer">
       <span class="icon">🌐</span>
@@ -359,29 +368,29 @@
     </button>
     <button class="menuBigBtn" id="btnHost">
       <span class="icon">🛰️</span>
-      <span class="txt">Host a Server<small>Make a room — no server, just you and friends</small></span>
+      <span class="txt">Host a Server<small>Create a room for you and friends</small></span>
     </button>
   </div>
 
   <!-- MULTIPLAYER: JOIN -->
   <div class="menuPanel" id="menuJoin" style="display:none;">
     <div class="roomListWrap" id="roomListWrap">
-      <div class="roomListEmpty">Looking for public rooms…</div>
+      <div class="roomListEmpty">🔭 Looking for public rooms…</div>
     </div>
     <div class="orDivider">or enter a room code</div>
     <div class="menuField">
-      <label for="joinRoomCode">Room Code</label>
-      <input type="text" id="joinRoomCode" placeholder="e.g. sunny-comet-42" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <label for="joinRoomCode">🔑 Room Code</label>
+      <input type="text" id="joinRoomCode" placeholder="e.g. 4821-XJQ" autocomplete="off" autocapitalize="off" spellcheck="false">
     </div>
     <div class="menuField" id="joinPasswordField" style="display:none;">
-      <label for="joinRoomPassword">Password</label>
+      <label for="joinRoomPassword">🔒 Password</label>
       <input type="password" id="joinRoomPassword" placeholder="Room password" autocomplete="off">
     </div>
     <div class="menuField">
-      <label for="joinNickname">Your Pilot Name</label>
+      <label for="joinNickname">🧑‍🚀 Your Pilot Name</label>
       <input type="text" id="joinNickname" placeholder="Nova42" autocomplete="off" maxlength="16">
     </div>
-    <button class="menuActionBtn" id="btnDoJoin">Join Room</button>
+    <button class="menuActionBtn" id="btnDoJoin">🚪 Join Room</button>
     <div class="menuStatus" id="joinStatus"></div>
     <button class="menuBackBtn" id="btnBackFromJoin">← Back</button>
   </div>
@@ -389,13 +398,13 @@
   <!-- HOST -->
   <div class="menuPanel" id="menuHost" style="display:none;">
     <div class="menuField">
-      <label for="hostNickname">Your Pilot Name</label>
+      <label for="hostNickname">🧑‍🚀 Your Pilot Name</label>
       <input type="text" id="hostNickname" placeholder="Nova42" autocomplete="off" maxlength="16">
     </div>
     <div class="menuField">
       <div class="checkRow">
         <input type="checkbox" id="hostUsePassword">
-        <label for="hostUsePassword" style="margin:0;">Protect with a password</label>
+        <label for="hostUsePassword" style="margin:0;">🔒 Protect with a password</label>
       </div>
     </div>
     <div class="menuField" id="hostPasswordField" style="display:none;">
@@ -405,52 +414,47 @@
     <div class="menuField">
       <div class="checkRow">
         <input type="checkbox" id="hostPublicList" checked>
-        <label for="hostPublicList" style="margin:0;">List this room publicly (others can find it without a code)</label>
+        <label for="hostPublicList" style="margin:0;">📡 List this room publicly (others can find it without a code)</label>
       </div>
     </div>
-    <button class="menuActionBtn" id="btnDoHost">Create Room</button>
+    <button class="menuActionBtn" id="btnDoHost">🛰️ Create Room</button>
     <div class="menuStatus" id="hostStatus"></div>
     <button class="menuBackBtn" id="btnBackFromHost">← Back</button>
   </div>
 
   <!-- HOST: ROOM CREATED -->
   <div class="menuPanel" id="menuHosted" style="display:none;">
-    <div class="roomCodeDisplay" id="hostedRoomCode">sunny-comet-42<span class="hint">Tap to copy • share this so friends can join</span></div>
-    <div class="menuStatus ok" id="hostedStatus">Room open. Waiting for pilots to join…</div>
-    <button class="menuActionBtn" id="btnEnterGameHosted">Fly! 🚀</button>
+    <div class="roomCodeDisplay" id="hostedRoomCode">4821-XJQ<span class="hint">📋 Tap to copy • share this so friends can join</span></div>
+    <div class="menuStatus ok" id="hostedStatus">🟢 Room open. Waiting for pilots to join…</div>
+    <button class="menuActionBtn" id="btnEnterGameHosted">▶️ Start</button>
   </div>
 </div>
 
 <div id="startScreen" style="display:none;">
-  <h1>🚕 TINY PLANETS TAXI 🌍</h1>
-  <div class="sub">pick up riders, fly them across the galaxy, earn your fare! 30 worlds to explore!</div>
+  <h1>🚀 TINY PLANETS TAXI</h1>
+  <div class="sub">Pick up passengers and fly them between worlds.</div>
   <p>
   <b>W / Up Arrow</b> — thrust forward &nbsp;•&nbsp; <b>A / D</b> or <b>Left / Right</b> — steer<br>
-  <b>S / Down Arrow</b> — back up &nbsp;•&nbsp; <b>Shift</b> — hold for a big boost (works together with thrust!)<br>
-  <b>Scroll</b> — zoom the camera in and out<br>
-  <b>R</b> — start a fresh shift any time, no worries!<br><br>
-  On phone/tablet: use the <b>left thumb pad</b> to steer and thrust, and the <b>orange boost button</b> on the right — you can hold both down at once! Pinch with two fingers, or use the <b>+ / −</b> buttons in the top right, to zoom the camera.<br>
-  Your little taxi has gentle engines, so hold <b>Shift/Boost</b> to blast off a planet's surface.<br>
-  Flying low through a planet's clouds slows you down a bit — that's the air pushing back!<br>
-  Your flight path shows as a soft yellow dotted line, so you always know where you're headed.<br>
-  Land gently on a glowing planet to pick up riders and drop them at their stop!<br>
-  Each trip pays a fare — the farther you fly, the more you earn.<br>
-  Planets marked ⛽ will fill your tank back up while you visit.
+  <b>S / Down Arrow</b> — reverse thrust &nbsp;•&nbsp; <b>Shift</b> — hold for a large boost (works together with thrust)<br>
+  <b>Scroll</b> — zoom the camera<br>
+  <b>R</b> — restart the shift at any time<br><br>
+  On phone/tablet: the <b>left thumb pad</b> steers and thrusts, and the <b>boost button</b> on the right can be held at the same time. Pinch, or use the <b>+ / −</b> buttons in the top right, to zoom.<br>
+  Hold <b>Shift/Boost</b> for extra thrust when taking off from a planet.<br>
+  Flying low through a planet's clouds adds drag and slows you down.<br>
+  The dotted line shows your predicted flight path.<br>
+  Land gently on a planet with waiting passengers to pick them up, then land at their destination to drop them off.<br>
+  Fare scales with distance.<br>
+  Planets marked ⛽ refuel your tank.
   </p>
-  <div class="go">Click anywhere to start your shift! 🌟</div>
+  <div class="go">👆 Click anywhere to start</div>
 </div>
 <div id="hud"></div>
 <div id="msg"></div>
-<div id="legend">
-  ✨ Bright ring = riders waiting<br>
-  ⛽ = free fuel here<br>
-  <span style="color:#c9a86b">●</span> Hearth &nbsp; <span style="color:#7fb8d6">●</span> Aequor<br>
-  <span style="color:#c98aa8">●</span> Ferrugo &nbsp; <span style="color:#8fc97a">●</span> Musco
-</div>
 <div id="topRightStack">
+  <div id="multiplayerToggle" class="offline"><span class="dot"></span> <span id="multiplayerStatusText">🧑‍🚀 Singleplayer</span></div>
   <button id="helpToggle" title="Back to Main Menu">☰</button>
-  <div id="multiplayerToggle" class="offline"><span class="dot"></span> <span id="multiplayerStatusText">Singleplayer</span></div>
   <button id="chatToggle" type="button" title="Toggle chat">💬 Chat<span class="unreadDot"></span></button>
+  <button id="musicToggle" type="button" title="Toggle music">🎵</button>
 </div>
 <div id="chatPanel">
   <div id="chatHeader">
@@ -460,7 +464,7 @@
   <div id="chatMessages"></div>
   <div id="chatComposer">
     <input id="chatInput" maxlength="180" placeholder="Say hi to other pilots..." />
-    <button id="chatSend" type="button">Send</button>
+    <button id="chatSend" type="button">📤 Send</button>
   </div>
   <div id="chatHint">Press Enter to send • /nick YourName changes your name</div>
 </div>
@@ -483,6 +487,15 @@
     <button class="controlButton boost" data-key="ShiftLeft">⚡<br>BOOST</button>
   </div>
 </div>
+
+<!-- Background music. Files live in a "music" folder next to this HTML
+     file, e.g. music/menu.mp3 and music/flight.mp3 — works locally and on
+     GitHub Pages since it's just a relative path to a static file.
+     preload="auto" hints the browser to fetch it early; volume is set in
+     JS. Looping is also set in JS so it applies even if attributes are
+     stripped by some hosts. -->
+<audio id="menuMusic" src="music/menu.mp3" loop preload="auto"></audio>
+<audio id="flightMusic" src="music/flight.mp3" loop preload="auto"></audio>
 
 <script type="module">
 /* =========================================================================
@@ -522,16 +535,18 @@ const netState = {
 };
 
 function slugifyRoomCode(input) {
-  return input.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+  return input.trim().toUpperCase().replace(/[^A-Z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
 }
 
 function randomRoomCode() {
-  const adjectives = ['sunny', 'quiet', 'lucky', 'swift', 'bright', 'gentle', 'cosmic', 'silver', 'amber', 'violet'];
-  const nouns = ['comet', 'orbit', 'nebula', 'rocket', 'meteor', 'station', 'voyager', 'harbor', 'signal', 'drift'];
-  const a = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const n = nouns[Math.floor(Math.random() * nouns.length)];
-  const num = Math.floor(10 + Math.random() * 89);
-  return `${a}-${n}-${num}`;
+  // Format: 4 digits, dash, 3 uppercase letters (e.g. "4821-XJQ")
+  const digits = String(Math.floor(1000 + Math.random() * 9000));
+  const letterPool = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I/O to avoid confusion with 1/0
+  let letters = '';
+  for (let i = 0; i < 3; i++) {
+    letters += letterPool[Math.floor(Math.random() * letterPool.length)];
+  }
+  return `${digits}-${letters}`;
 }
 
 // Simple string hash (djb2) — used to derive a PeerJS id from a room code
@@ -712,17 +727,17 @@ function connectToRoom(roomCode, password, nickname, isHost) {
   window.__netSendEconomy = economyAction.send;
 
   function onAnyPeerJoin(peerId) {
-    netState.peers.set(peerId, { name: 'Pilot', x: 0, y: 0, angle: 0, credits: 0, ts: performance.now() });
+    netState.peers.set(peerId, { name: 'Pilot', x: 0, y: 0, vx: 0, vy: 0, angle: 0, credits: 0, ts: performance.now() });
     joinInfoAction.send({ name: netState.nickname }, peerId);
     if (typeof window.__onMultiplayerChatSystem === 'function') {
-      window.__onMultiplayerChatSystem(`A pilot connected.`);
+      window.__onMultiplayerChatSystem(`🟢 A pilot connected.`);
     }
   }
   function onAnyPeerLeave(peerId) {
     const p = netState.peers.get(peerId);
     netState.peers.delete(peerId);
     if (typeof window.__onMultiplayerChatSystem === 'function') {
-      window.__onMultiplayerChatSystem(`${p ? p.name : 'A pilot'} disconnected.`);
+      window.__onMultiplayerChatSystem(`🔴 ${p ? p.name : 'A pilot'} disconnected.`);
     }
   }
   room.onPeerJoin(onAnyPeerJoin);
@@ -737,6 +752,7 @@ function connectToRoom(roomCode, password, nickname, isHost) {
     const p = netState.peers.get(peerId);
     if (!p || !data) return;
     p.x = data.x; p.y = data.y; p.angle = data.angle;
+    p.vx = data.vx || 0; p.vy = data.vy || 0;
     p.landed = data.landed; p.cooked = data.cooked;
     p.ts = performance.now();
   };
@@ -761,13 +777,13 @@ function connectToRoom(roomCode, password, nickname, isHost) {
       });
       conn.on('error', () => {
         if (typeof window.__onMultiplayerChatSystem === 'function') {
-          window.__onMultiplayerChatSystem('Could not reach that room. Check the code and password.');
+          window.__onMultiplayerChatSystem('⚠️ Could not reach that room. Check the code and password.');
         }
       });
     }
   }).catch(() => {
     if (typeof window.__onMultiplayerChatSystem === 'function') {
-      window.__onMultiplayerChatSystem('Connection failed. Check your internet connection.');
+      window.__onMultiplayerChatSystem('⚠️ Connection failed. Check your internet connection.');
     }
   });
 
@@ -922,7 +938,7 @@ document.getElementById('joinRoomCode').addEventListener('input', () => {
 function refreshRoomList() {
   const wrap = document.getElementById('roomListWrap');
   if (publicRoomDirectory.size === 0) {
-    wrap.innerHTML = '<div class="roomListEmpty">No public rooms found yet — they may take a few seconds to appear, or ask a friend for their room code.</div>';
+    wrap.innerHTML = '<div class="roomListEmpty">🔭 No public rooms found yet — they may take a few seconds to appear, or ask a friend for their room code.</div>';
     return;
   }
   const rows = [...publicRoomDirectory.entries()].sort((a, b) => b[1].lastSeen - a[1].lastSeen);
@@ -930,9 +946,9 @@ function refreshRoomList() {
     <div class="roomRow">
       <div>
         <div class="roomName">${info.hasPassword ? '🔒' : '🌐'} ${escapeHtmlMenu(code)}</div>
-        <div class="roomMeta">${info.players} pilot${info.players === 1 ? '' : 's'} online</div>
+        <div class="roomMeta">🧑‍🚀 ${info.players} pilot${info.players === 1 ? '' : 's'} online</div>
       </div>
-      <button data-room="${escapeHtmlMenu(code)}" data-haspw="${info.hasPassword}">Join</button>
+      <button data-room="${escapeHtmlMenu(code)}" data-haspw="${info.hasPassword}">🚪 Join</button>
     </div>
   `).join('');
   wrap.querySelectorAll('button[data-room]').forEach(btn => {
@@ -957,19 +973,19 @@ document.getElementById('btnDoJoin').addEventListener('click', () => {
   const statusEl = document.getElementById('joinStatus');
 
   if (!code) {
-    statusEl.textContent = 'Enter a room code first.';
+    statusEl.textContent = '⚠️ Enter a room code first.';
     statusEl.className = 'menuStatus err';
     return;
   }
   saveNickname(nick);
-  statusEl.textContent = 'Connecting…';
+  statusEl.textContent = '🔄 Connecting…';
   statusEl.className = 'menuStatus';
 
   let room;
   try {
     room = connectToRoom(code, password, nick, false);
   } catch (err) {
-    statusEl.textContent = "Couldn't connect: " + err.message;
+    statusEl.textContent = "⚠️ Couldn't connect: " + err.message;
     statusEl.className = 'menuStatus err';
     return;
   }
@@ -979,7 +995,7 @@ document.getElementById('btnDoJoin').addEventListener('click', () => {
   // give it a few seconds to find at least one peer before calling it out.
   const joinTimeout = setTimeout(() => {
     if (netState.peers.size === 0) {
-      statusEl.textContent = "Couldn't find anyone in that room. Double-check the code and password, or the room may be empty/offline.";
+      statusEl.textContent = "⚠️ Couldn't find anyone in that room. Double-check the code and password, or the room may be empty/offline.";
       statusEl.className = 'menuStatus err';
     }
   }, 6000);
@@ -988,7 +1004,7 @@ document.getElementById('btnDoJoin').addEventListener('click', () => {
     if (netState.peers.size > 0) {
       clearInterval(checkConnected);
       clearTimeout(joinTimeout);
-      statusEl.textContent = `Connected! ${netState.peers.size} pilot(s) already here.`;
+      statusEl.textContent = `✅ Connected! ${netState.peers.size} pilot(s) already here.`;
       statusEl.className = 'menuStatus ok';
       setTimeout(() => enterGame(), 500);
     }
@@ -997,7 +1013,7 @@ document.getElementById('btnDoJoin').addEventListener('click', () => {
   // Also allow entering even if alone in a freshly-made room with this code/password combo
   window.__joinAloneTimer = setTimeout(() => {
     if (netState.room && netState.peers.size === 0) {
-      statusEl.textContent = 'Room open — no one else here yet. You can still fly and others can join you.';
+      statusEl.textContent = '🟢 Room open — no one else here yet. You can still fly and others can join you.';
       statusEl.className = 'menuStatus ok';
     }
   }, 6200);
@@ -1011,7 +1027,7 @@ document.getElementById('btnDoHost').addEventListener('click', () => {
 
   if (usePassword && !password) {
     const statusEl = document.getElementById('hostStatus');
-    statusEl.textContent = 'Enter a password, or uncheck "Protect with a password".';
+    statusEl.textContent = '⚠️ Enter a password, or uncheck "Protect with a password".';
     statusEl.className = 'menuStatus err';
     return;
   }
@@ -1022,14 +1038,14 @@ document.getElementById('btnDoHost').addEventListener('click', () => {
   try {
     connectToRoom(code, password, nick, true);
   } catch (err) {
-    statusEl.textContent = "Couldn't host: " + err.message;
+    statusEl.textContent = "⚠️ Couldn't host: " + err.message;
     statusEl.className = 'menuStatus err';
     return;
   }
   netState.__hasPassword = usePassword;
 
-  document.getElementById('hostedRoomCode').innerHTML = `${escapeHtmlMenu(code)}<span class="hint">Tap to copy • share this so friends can join${usePassword ? ' (they\'ll need the password too)' : ''}</span>`;
-  document.getElementById('hostedStatus').textContent = 'Room open. Waiting for pilots to join…';
+  document.getElementById('hostedRoomCode').innerHTML = `${escapeHtmlMenu(code)}<span class="hint">📋 Tap to copy • share this so friends can join${usePassword ? ' (they\'ll need the password too)' : ''}</span>`;
+  document.getElementById('hostedStatus').textContent = '🟢 Room open. Waiting for pilots to join…';
 
   if (isPublic) startAnnouncing();
 
@@ -1040,7 +1056,7 @@ document.getElementById('hostedRoomCode').addEventListener('click', () => {
   const code = netState.roomCode;
   if (code && navigator.clipboard) {
     navigator.clipboard.writeText(code).then(() => {
-      document.getElementById('hostedStatus').textContent = 'Room code copied to clipboard!';
+      document.getElementById('hostedStatus').textContent = '📋 Room code copied to clipboard!';
       document.getElementById('hostedStatus').className = 'menuStatus ok';
     }).catch(() => {});
   }
@@ -1058,28 +1074,102 @@ document.getElementById('helpToggle').addEventListener('click', () => {
   document.getElementById('chatPanel').classList.remove('mobileOpen');
   document.getElementById('chatToggle').classList.remove('mpActive', 'hasUnread');
   window.__gameStarted = false;
+  playMenuMusic();
 });
+
+/* ---- Music manager ----
+   Two loops (menu / flight) that crossfade-swap depending on whether the
+   main menu or the game is showing. Browsers block audio with sound until
+   a user gesture happens on the page, so nothing actually plays until the
+   first click/tap anywhere — musicUnlocked tracks that. The mute toggle
+   just remembers the user's choice in localStorage and pauses both tracks
+   without tearing anything down, so un-muting resumes instantly. */
+const menuMusicEl = document.getElementById('menuMusic');
+const flightMusicEl = document.getElementById('flightMusic');
+const musicToggleBtn = document.getElementById('musicToggle');
+const MUSIC_VOLUME = 0.45;
+let musicUnlocked = false;
+let musicMuted = localStorage.getItem('tinyPlanetsMusicMuted') === 'true';
+
+[menuMusicEl, flightMusicEl].forEach(el => { if (el) el.volume = MUSIC_VOLUME; });
+
+function updateMusicToggleUI() {
+  if (!musicToggleBtn) return;
+  musicToggleBtn.textContent = musicMuted ? '🔇' : '🎵';
+  musicToggleBtn.classList.toggle('muted', musicMuted);
+}
+updateMusicToggleUI();
+
+function safePlay(el) {
+  if (!el || musicMuted || !musicUnlocked) return;
+  const p = el.play();
+  if (p && p.catch) p.catch(() => {}); // ignore autoplay rejections
+}
+
+function playMenuMusic() {
+  if (!flightMusicEl || !menuMusicEl) return;
+  flightMusicEl.pause();
+  safePlay(menuMusicEl);
+}
+
+function playFlightMusic() {
+  if (!flightMusicEl || !menuMusicEl) return;
+  menuMusicEl.pause();
+  safePlay(flightMusicEl);
+}
+
+function unlockMusicOnce() {
+  if (musicUnlocked) return;
+  musicUnlocked = true;
+  // Whichever screen is currently visible decides which track starts.
+  if (mainMenuEl.classList.contains('hidden')) {
+    playFlightMusic();
+  } else {
+    playMenuMusic();
+  }
+}
+// Any click/keydown/touch anywhere satisfies the browser's autoplay gesture
+// requirement — capture it once, then get out of the way.
+['pointerdown', 'keydown'].forEach(evt => {
+  window.addEventListener(evt, unlockMusicOnce, { once: true, passive: true });
+});
+
+if (musicToggleBtn) {
+  musicToggleBtn.addEventListener('click', () => {
+    musicMuted = !musicMuted;
+    localStorage.setItem('tinyPlanetsMusicMuted', String(musicMuted));
+    updateMusicToggleUI();
+    if (musicMuted) {
+      menuMusicEl.pause();
+      flightMusicEl.pause();
+    } else if (musicUnlocked) {
+      if (mainMenuEl.classList.contains('hidden')) playFlightMusic();
+      else playMenuMusic();
+    }
+  });
+}
 
 function enterGame() {
   mainMenuEl.classList.add('hidden');
   const statusText = document.getElementById('multiplayerStatusText');
   const pill = document.getElementById('multiplayerToggle');
   if (netState.mode === 'multiplayer') {
-    statusText.textContent = `Room: ${netState.roomCode}`;
+    statusText.textContent = `🌐 Room: ${netState.roomCode}`;
     pill.classList.remove('offline');
     document.getElementById('chatPanel').style.display = 'flex';
     document.getElementById('chatPanel').classList.remove('mobileOpen');
     document.getElementById('chatToggle').classList.add('mpActive');
     const chatStatusInit = document.getElementById('chatStatus');
-    if (chatStatusInit) chatStatusInit.textContent = netState.peers.size > 0 ? 'Online' : 'Waiting for others…';
+    if (chatStatusInit) chatStatusInit.textContent = netState.peers.size > 0 ? '🟢 Online' : '⏳ Waiting for others…';
   } else {
-    statusText.textContent = 'Singleplayer';
+    statusText.textContent = '🧑‍🚀 Singleplayer';
     pill.classList.add('offline');
     document.getElementById('chatPanel').style.display = 'none';
     document.getElementById('chatToggle').classList.remove('mpActive');
   }
   startScreenEl.style.display = window.matchMedia('(max-width: 900px)').matches ? 'flex' : 'none';
   window.__gameStarted = true;
+  playFlightMusic();
 }
 </script>
 
@@ -1422,7 +1512,7 @@ function enterGame() {
       ship.credits += totalFare;
       localStorage.setItem('tinyPlanetsCredits', ship.credits);
       ship.tripsCompleted += arriving.length;
-      showMsg(`Trip complete! Dropped off ${arriving.length} rider${arriving.length > 1 ? 's' : ''} at ${planet.name} — fare: 🪙${totalFare}`, 3);
+      showMsg(`✅ Trip complete. Dropped off ${arriving.length} passenger${arriving.length > 1 ? 's' : ''} at ${planet.name} — fare: 💰${totalFare}`, 3);
       spawnWalkers(planet, arriving.length, 'fromShip');
       for (let i = 0; i < arriving.length; i++) {
         const origin = pickRandomOtherStation(planet);
@@ -1431,7 +1521,7 @@ function enterGame() {
       if (isMultiplayerActive() && window.__netSendEconomy) {
         window.__netSendEconomy({
           creditsDelta: totalFare,
-          note: `${chatState.nick || 'A pilot'} earned 🪙${totalFare} dropping off at ${planet.name}`
+          note: `💰 ${chatState.nick || 'A pilot'} earned ${totalFare} dropping off at ${planet.name}`
         });
       }
     }
@@ -1447,7 +1537,7 @@ function enterGame() {
         planet.waiting--;
       }
       spawnWalkers(planet, boarding, 'toShip');
-      showMsg(`🚕 Taxi call! ${boarding} rider${boarding > 1 ? 's' : ''} hopped in at ${planet.name}`, 2.5);
+      showMsg(`🧑‍🤝‍🧑 ${boarding} passenger${boarding > 1 ? 's' : ''} boarded at ${planet.name}`, 2.5);
     }
   }
 
@@ -1504,7 +1594,7 @@ function enterGame() {
     ship.fuel = ship.maxFuel;
     ship.cooked = false;
     ship.passengers = [];
-    showMsg("New shift started! Ready when you are 🚕", 1.5);
+    showMsg("🔄 New shift started.", 1.5);
   }
 
   const cam = { x: 0, y: 0, zoom: 0.18 };
@@ -1522,7 +1612,7 @@ function enterGame() {
     if (e.code === 'BracketLeft') snapTimeScaleDown();
     if (e.code === 'KeyT') {
       timeScale = 1;
-      showMsg('Time accel reset to normal', 1.5);
+      showMsg('⏱️ Time accel reset to normal', 1.5);
     }
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
   });
@@ -1611,14 +1701,14 @@ function enterGame() {
   function snapTimeScaleUp() {
     const next = TIMEWARP_STEPS.find(step => step > timeScale + 1e-6);
     timeScale = next === undefined ? TIMEWARP_STEPS[TIMEWARP_STEPS.length - 1] : next;
-    showMsg(`Time accel: x${timeScale.toFixed(2)}`, 1.2);
+    showMsg(`⏩ Time accel: x${timeScale.toFixed(2)}`, 1.2);
   }
 
   function snapTimeScaleDown() {
     const reversed = [...TIMEWARP_STEPS].reverse();
     const next = reversed.find(step => step < timeScale - 1e-6);
     timeScale = next === undefined ? TIMEWARP_STEPS[0] : next;
-    showMsg(`Time accel: x${timeScale.toFixed(2)}`, 1.2);
+    showMsg(`⏪ Time accel: x${timeScale.toFixed(2)}`, 1.2);
   }
 
   function setupTimeWarpButton(el, direction) {
@@ -1689,8 +1779,11 @@ function enterGame() {
     return { planet: best, dist: bestDist };
   }
 
-  function predictOrbit(steps, dt) {
-    let x = ship.x, y = ship.y, vx = ship.vx, vy = ship.vy;
+  function predictOrbit(steps, dt, startX, startY, startVx, startVy) {
+    let x = startX !== undefined ? startX : ship.x;
+    let y = startY !== undefined ? startY : ship.y;
+    let vx = startVx !== undefined ? startVx : ship.vx;
+    let vy = startVy !== undefined ? startVy : ship.vy;
     const pts = [];
     for (let i = 0; i < steps; i++) {
       let gx = 0, gy = 0;
@@ -1856,10 +1949,10 @@ function enterGame() {
     ship.fuel = Math.max(0, Math.min(ship.maxFuel, ship.fuel));
     if (ship.fuel <= 0 && !ship.cooked) {
       ship.cooked = true;
-      showMsg("Fuel empty — coast to a ⛽ planet to refill.", 3);
+      showMsg("🔥 Fuel empty. Coast to a ⛽ planet to refuel.", 3);
     }
     if ((wantThrust || wantReverse) && !hasFuel && !ship.cooked && msgTimer <= 0) {
-      showMsg("Tank's empty! Find a ⛽ planet to fill up again", 1.5);
+      showMsg("🔥 Tank empty. Find a ⛽ planet to refuel.", 1.5);
     }
 
     let gx = 0, gy = 0;
@@ -1896,12 +1989,12 @@ function enterGame() {
     if (dist <= nearest.r + 8) {
       const speed = Math.hypot(ship.vx, ship.vy);
       if (speed > ship.safeLandingSpeed) {
-        showMsg("Bit of a bounce on " + nearest.name + "! Taxi's still good to go.", 2.5);
+        showMsg("💥 Hard landing on " + nearest.name + ". No damage.", 2.5);
         ship.vx *= -0.15; ship.vy *= -0.15;
       } else if (!ship.landed) {
-        showMsg("Smooth landing on " + nearest.name + "! 🌟", 2);
+        showMsg("🅿️ Landed on " + nearest.name + ".", 2);
         if (nearest.station) handleStationArrival(nearest);
-        if (nearest.gasStation) showMsg("Filling up the tank at " + nearest.name + "... ⛽", 2);
+        if (nearest.gasStation) showMsg("⛽ Refueling at " + nearest.name + "...", 2);
       }
       const nx = (ship.x - nearest.x) / dist, ny = (ship.y - nearest.y) / dist;
       ship.x = nearest.x + nx * (nearest.r + 8);
@@ -1918,7 +2011,7 @@ function enterGame() {
         ship.fueledUpMsgShown = false;
       } else if (nearest.gasStation && ship.fuel >= ship.maxFuel && !ship.fueledUpMsgShown) {
         ship.cooked = false;
-        showMsg("Full tank! Ready to fly ⛽✨", 1.5);
+        showMsg("⛽ Tank full.", 1.5);
         ship.fueledUpMsgShown = true;
       }
     } else {
@@ -1942,32 +2035,32 @@ function enterGame() {
     netSyncTimer += dt;
     if (netSyncTimer > 0.08 && isMultiplayerActive() && window.__netSendState) {
       netSyncTimer = 0;
-      window.__netSendState({ x: ship.x, y: ship.y, angle: ship.angle, landed: ship.landed, cooked: ship.cooked });
+      window.__netSendState({ x: ship.x, y: ship.y, vx: ship.vx, vy: ship.vy, angle: ship.angle, landed: ship.landed, cooked: ship.cooked });
     }
 
     const speed = Math.hypot(ship.vx, ship.vy);
-    const paxList = ship.passengers.map(pax => `${pax.destination.name} (🪙${pax.fare})`).join(', ') || 'empty seats — find a rider!';
+    const paxList = ship.passengers.map(pax => `${pax.destination.name} (${pax.fare})`).join(', ') || 'none';
     const meterTotal = ship.passengers.reduce((sum, pax) => sum + pax.fare, 0);
 
     const fuelPct = Math.round(ship.fuel);
     const fuelColor = fuelPct > 40 ? '#7fe0a0' : (fuelPct > 15 ? '#ffd23a' : '#ff6a5a');
     let statusHtml;
-    if (ship.cooked && !ship.landed) statusHtml = `<span class="statusBadge statusCooked">⛽ EMPTY TANK — coast to a station</span>`;
-    else if (ship.landed) statusHtml = `<span class="statusBadge statusParked">🛬 PARKED</span>`;
-    else statusHtml = `<span class="statusBadge statusFlying">🌠 FLYING</span>`;
+    if (ship.cooked && !ship.landed) statusHtml = `<span class="statusBadge statusCooked">🔥 EMPTY TANK</span>`;
+    else if (ship.landed) statusHtml = `<span class="statusBadge statusParked">🅿️ LANDED</span>`;
+    else statusHtml = `<span class="statusBadge statusFlying">🚀 FLYING</span>`;
 
     const mpLine = isMultiplayerActive()
       ? `🌐 Room: ${window.__netState.roomCode} — ${getLivePeers().length} other pilot${getLivePeers().length === 1 ? '' : 's'} nearby`
-      : `🌐 Singleplayer`;
+      : `🧑‍🚀 Singleplayer`;
 
     document.getElementById('hud').innerHTML =
-      `🚕 Space Taxi — Nearest world: <b>${nearest.name}</b> &nbsp; ${statusHtml}<br>` +
-      `🚀 Speed: ${speed.toFixed(0)}<br>` +
+      `🪐 Nearest world: <b>${nearest.name}</b> &nbsp; ${statusHtml}<br>` +
+      `💨 Speed: ${speed.toFixed(0)}<br>` +
       `⛽ Fuel: ${fuelPct}%<span class="fuelBarWrap"><span class="fuelBarFill" style="width:${fuelPct}%; background:${fuelColor};"></span></span><br>` +
-      `🧑‍🚀 Riders: ${ship.passengers.length}/${ship.maxSeats} — heading to: ${paxList}<br>` +
-      `🪙 On the meter: ${meterTotal} &nbsp; | &nbsp; 💰 Total earned: ${ship.credits}<br>` +
+      `🧑‍🤝‍🧑 Passengers: ${ship.passengers.length}/${ship.maxSeats} — destinations: ${paxList}<br>` +
+      `💰 On the meter: ${meterTotal} &nbsp; | &nbsp; Total earned: ${ship.credits}<br>` +
       `${mpLine}<br>` +
-      `⏱️ Time accel: x${timeScale.toFixed(2)}`;
+      `⏱️ Time acceleration: x${timeScale.toFixed(2)}`;
   }
 
   function worldToScreen(x, y) {
@@ -2147,7 +2240,7 @@ function enterGame() {
         ctx.font = 'bold 13px "Comic Sans MS", "Trebuchet MS", sans-serif';
         ctx.textAlign = 'center';
         let label = p.name;
-        if (p.station && p.waiting > 0) label += ` (${p.waiting} waiting 👋)`;
+        if (p.station && p.waiting > 0) label += ` (👋${p.waiting} waiting)`;
         if (p.gasStation) label += ' ⛽';
         ctx.lineWidth = 3;
         ctx.strokeStyle = 'rgba(5,8,18,0.7)';
@@ -2176,6 +2269,7 @@ function enterGame() {
     }
 
     drawTrailAndOrbit();
+    drawPeerTrajectories();
     drawWalkers();
     drawPeerGhosts();
     drawShip();
@@ -2219,6 +2313,29 @@ function enterGame() {
     let hash = 0;
     for (let i = 0; i < peerId.length; i++) hash = (hash * 31 + peerId.charCodeAt(i)) >>> 0;
     return ghostColors[hash % ghostColors.length];
+  }
+
+  function drawPeerTrajectories() {
+    for (const peer of getLivePeers()) {
+      // Landed/cooked peers aren't coasting on a free orbit, so a predicted
+      // path would be misleading — only show it while they're flying.
+      if (peer.landed || peer.cooked) continue;
+      const pts = predictOrbit(2500, 0.08, peer.x, peer.y, peer.vx || 0, peer.vy || 0);
+      if (pts.length < 2) continue;
+      const color = peerColor(peer.id);
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = 0.4;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      for (let i = 0; i < pts.length; i++) {
+        const s = worldToScreen(pts[i].x, pts[i].y);
+        if (i === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    }
   }
 
   function drawPeerGhosts() {
