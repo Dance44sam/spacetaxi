@@ -3,7 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Tiny Planets Taxi — Orbit Sim (30 Worlds)</title>
+<title>Shuttle Service — Orbit Sim (48 Worlds)</title>
+<!-- CrazyGames SDK: safe to include even off-platform — the SDK detects a
+     'disabled' environment on any non-CrazyGames domain and all wrapper
+     calls below are guarded to no-op in that case. -->
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 <style>
   /* ===== Main Menu ===== */
   #mainMenu {
@@ -56,6 +60,13 @@
     box-shadow: 0 0 16px rgba(255,220,120,0.4); margin-top: 4px;
   }
   .menuActionBtn:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
+  /* Secondary variant: same shape/sizing as the primary action button, but
+     a muted glassy look so it doesn't compete with the main call-to-action
+     (used for "Copy Invite Link" alongside "Start"). */
+  .menuActionBtnSecondary {
+    background: rgba(255,255,255,0.08); color: #cfe0ff; box-shadow: none;
+    border: 2px solid rgba(140,180,255,0.4);
+  }
   .menuStatus { font-size: 13px; color: #9ad0ff; min-height: 18px; margin-top: 10px; }
   .menuStatus.err { color: #ff9a8a; }
   .menuStatus.ok { color: #a6f5b4; }
@@ -120,24 +131,6 @@
     border: 2px solid rgba(255,220,140,0.5); text-shadow: 0 1px 3px rgba(0,0,0,0.5);
     max-width: 80vw; text-align: center; z-index: 6;
   }
-  #startScreen {
-    position: fixed; inset: 0; background: radial-gradient(ellipse at center, #10182c 0%, #05070c 100%);
-    display: flex; align-items: center; justify-content: center; flex-direction: column;
-    color: #e8f0ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
-    text-align: center; z-index: 10; cursor: pointer;
-  }
-  #startScreen h1 {
-    color: #ffe27a; font-weight: bold; letter-spacing: 3px; font-size: 42px;
-    text-shadow: 0 0 20px rgba(255,220,120,0.6), 0 2px 4px rgba(0,0,0,0.5); margin-bottom: 6px;
-  }
-  #startScreen .sub { color: #9ad0ff; font-size: 16px; margin-top: -6px; margin-bottom: 18px; }
-  #startScreen p { font-size: 15px; line-height: 1.9; max-width: 520px; }
-  #startScreen .go {
-    margin-top: 20px; font-size: 18px; color: #05070c; background: #ffe27a;
-    padding: 10px 26px; border-radius: 24px; font-weight: bold;
-    box-shadow: 0 0 18px rgba(255,220,120,0.5);
-  }
-  #startScreen { touch-action: none; }
   /* ---- Upgrade shop: a small pill button appears above the HUD only
      while landed at a station, opening a centered panel styled to match
      the main menu's dark glassy panels. ---- */
@@ -151,6 +144,28 @@
   @keyframes shopPulse {
     0%, 100% { box-shadow: 0 0 10px rgba(255,220,120,0.3); }
     50% { box-shadow: 0 0 20px rgba(255,220,120,0.6); }
+  }
+  /* ---- Refuel-via-ad button: appears centered above the message strip
+     only while the ship is cooked (out of fuel) and not yet landed. ---- */
+  #refuelButton {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%);
+    z-index: 8; padding: 10px 20px; border-radius: 999px; border: 2px solid rgba(120,220,255,0.6);
+    background: rgba(90,180,255,0.24); color: #dff3ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
+    font-weight: bold; font-size: clamp(12px, 2.2vw, 15px); cursor: pointer;
+    box-shadow: 0 0 16px rgba(120,200,255,0.4); animation: refuelPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes refuelPulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(120,200,255,0.3); }
+    50% { box-shadow: 0 0 20px rgba(120,200,255,0.65); }
+  }
+  /* Mobile/touch layout also needs to apply on wide touchscreens like an
+     iPad Pro in landscape (1194–1366px), which a width-only breakpoint
+     misses entirely — so key this off touch capability OR narrow width. */
+  @media (max-width: 900px), (pointer: coarse) {
+    #refuelButton { bottom: calc(26vh + 54px); }
+  }
+  @media (max-height: 480px) and (pointer: coarse) {
+    #refuelButton { bottom: 46px; padding: 8px 14px; }
   }
   #shopPanel {
     position: fixed; inset: 0; z-index: 21; background: rgba(5,7,14,0.72);
@@ -185,6 +200,35 @@
   }
   .shopBuyBtn:disabled { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.4); cursor: default; }
   .shopMaxed { text-align: center; font-size: 12px; color: #a6f5b4; padding: 6px; font-weight: bold; }
+  /* ---- Leaderboard: a trophy pill living in the top-right stack
+     alongside chat/music/multiplayer status, so it auto-spaces with the
+     rest of that column instead of needing its own fixed coordinates.
+     Styled to match #chatToggle's pill treatment. ---- */
+  #leaderboardButton {
+    padding: 8px 12px; border-radius: 999px; border: 2px solid rgba(140,180,255,0.5);
+    background: rgba(10,15,35,0.75); color: #ffe27a; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
+    font-weight: bold; font-size: 12px; cursor: pointer;
+  }
+  #leaderboardButton:hover { background: rgba(255,226,122,0.14); }
+  #leaderboardPanel {
+    position: fixed; inset: 0; z-index: 21; background: rgba(5,7,14,0.72);
+    display: flex; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
+  }
+  .leaderboardHint { font-size: 11px; color: #9ad0ff; opacity: 0.85; margin-bottom: 12px; }
+  .lbRow {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 12px;
+    padding: 9px 12px; margin-bottom: 6px;
+  }
+  .lbRow:last-child { margin-bottom: 0; }
+  .lbRow.lbMe { border-color: rgba(255,220,140,0.6); background: rgba(255,226,122,0.1); }
+  .lbRank { width: 26px; flex-shrink: 0; font-weight: bold; color: #9ad0ff; font-size: 13px; text-align: center; }
+  .lbRow:nth-child(1) .lbRank { color: #ffd54a; }
+  .lbRow:nth-child(2) .lbRank { color: #d7dbe6; }
+  .lbRow:nth-child(3) .lbRank { color: #d8a06a; }
+  .lbName { flex: 1; font-weight: bold; color: #ffe8b0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lbStats { font-size: 12px; color: #cfe0ff; opacity: 0.9; text-align: right; flex-shrink: 0; }
+  .lbEmpty { text-align: center; font-size: 12px; color: #cfe0ff; opacity: 0.7; padding: 16px 6px; }
   #minimap {
     position: fixed; bottom: 12px; right: 12px;
     width: clamp(120px, 16vw, 190px); height: clamp(120px, 16vw, 190px);
@@ -224,7 +268,7 @@
      composes correctly with the display:flex the media query below adds
      on mobile (an inline style would win specificity over the query). */
   #chatToggle.mpActive { display: none; }
-  @media (max-width: 900px) {
+  @media (max-width: 900px), (pointer: coarse) {
     #chatToggle.mpActive { display: flex; }
   }
   /* Same 34px circular footprint it had as the "?" help button —
@@ -346,20 +390,24 @@
   }
   .zoomButton.active { transform: scale(0.92); background: rgba(140,180,255,0.35); }
 
-  @media (max-width: 900px) {
+  /* Same reasoning as the #refuelButton query above: touch controls need
+     to appear on any touchscreen, not just narrow ones — an iPad Pro in
+     landscape is 1194–1366px wide but still needs on-screen controls. */
+  @media (max-width: 900px), (pointer: coarse) {
     #hud { max-width: min(92vw, calc(100vw - 74px)); }
     #zoomControls { display: flex; }
     #minimap { bottom: 26vh; right: 12px; }
     #mobileControls { display: block; }
-    #startScreen p { max-width: 90vw; }
-    #startScreen .go { width: auto; padding: 12px 24px; }
     #msg { bottom: 26vh; }
+    /* top:10px/left:50% collides with the HUD (which can grow nearly
+       full-width) and the top-right stack on mobile — move it to a clear
+       strip above the touch controls instead. */
+    #shopButton { top: auto; bottom: 26vh; left: 50%; transform: translateX(-50%); }
     #topRightStack { top: auto; right: auto; left: max(10px, 1.2vw); bottom: 68vh; align-items: flex-start; }
-    #multiplayerToggle {
-      z-index: 13;
-      padding: 7px 10px;
-      font-size: 11px;
-    }
+    /* The singleplayer/room status pill just adds clutter on the small
+       mobile screen and isn't interactive — the room code is already
+       shown in the main menu, so hide it here and keep it desktop-only. */
+    #multiplayerToggle { display: none; }
     /* Chat defaults CLOSED on mobile (toggled via #chatToggle) so it never
        sits on top of the touch controls uninvited. Position/size scale
        with viewport height rather than a fixed px offset. */
@@ -385,6 +433,7 @@
     .controlButton { width: 42px; height: 42px; }
     .controlButton.boost { width: 58px; height: 58px; font-size: 11px; }
     #msg { bottom: 8px; font-size: clamp(11px, 2vh, 14px); }
+    #shopButton { bottom: 64px; }
     /* Reset the portrait-only 68vh offset: on a short/landscape phone that
        value can land the stack mid-screen instead of in the corner, so
        pin it back to the top-right corner (with room for the zoom column
@@ -398,11 +447,198 @@
 </style>
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
+<script>
+/* =========================================================================
+   CrazyGames SDK integration
+   All calls are wrapped so the game still works fine when the SDK is
+   'disabled' (i.e. running anywhere other than crazygames.com/local dev) —
+   every method here becomes a safe no-op instead of throwing.
+   ========================================================================= */
+window.CrazyGamesHelper = (function() {
+  let ready = false;
+  let sdkAvailable = false;
+
+  const CG = window.CrazyGames && window.CrazyGames.SDK;
+  if (CG) {
+    // Report loading as soon as possible — stopped once the main menu
+    // is actually interactive (see the init() call further down).
+    try { CG.game.loadingStart(); } catch (e) {}
+  }
+
+  async function init() {
+    if (!CG) return; // script failed to load (e.g. offline/blocked) — no-op mode
+    try {
+      await CG.init();
+      sdkAvailable = CG.environment !== 'disabled';
+      ready = true;
+      if (sdkAvailable) {
+        // Mirror the platform's mute setting onto our own music system.
+        applyMuteSetting();
+        CG.game.addSettingsChangeListener(applyMuteSetting);
+      }
+    } catch (e) {
+      ready = true;
+      sdkAvailable = false;
+      console.log('CrazyGames SDK init failed (probably running off-platform):', e);
+    }
+  }
+
+  function applyMuteSetting() {
+    if (!sdkAvailable) return;
+    const muted = !!(CG.game.settings && CG.game.settings.muteAudio);
+    if (window.__cgSetExternalMute) window.__cgSetExternalMute(muted);
+  }
+
+  function loadingStop() {
+    if (!sdkAvailable) return;
+    try { CG.game.loadingStop(); } catch (e) {}
+  }
+
+  function gameplayStart() {
+    if (!sdkAvailable) return;
+    try { CG.game.gameplayStart(); } catch (e) {}
+  }
+
+  function gameplayStop() {
+    if (!sdkAvailable) return;
+    try { CG.game.gameplayStop(); } catch (e) {}
+  }
+
+  function happytime() {
+    if (!sdkAvailable) return;
+    try { CG.game.happytime(); } catch (e) {}
+  }
+
+  // Requests a midgame ad. onPause/onResume let the caller mute audio and
+  // pause the sim while the ad plays, as CrazyGames requires.
+  function requestMidgameAd(onPause, onResume) {
+    if (!sdkAvailable) { onResume && onResume(); return; }
+    try {
+      CG.ad.requestAd('midgame', {
+        adStarted: () => { onPause && onPause(); },
+        adFinished: () => { onResume && onResume(); },
+        adError: () => { onResume && onResume(); },
+      });
+    } catch (e) {
+      onResume && onResume();
+    }
+  }
+
+  // Requests a rewarded ad. onReward fires only if the ad played to completion.
+  function requestRewardedAd(onPause, onReward, onResume) {
+    if (!sdkAvailable) { onResume && onResume(); return; }
+    try {
+      CG.ad.requestAd('rewarded', {
+        adStarted: () => { onPause && onPause(); },
+        adFinished: () => { onReward && onReward(); onResume && onResume(); },
+        adError: () => { onResume && onResume(); },
+      });
+    } catch (e) {
+      onResume && onResume();
+    }
+  }
+
+  /* ---- Data module: CG.data.getItem/setItem behave like localStorage but
+     sync to the player's CrazyGames account when logged in. Off-platform
+     (or if the SDK data module isn't enabled for this game), every call
+     transparently falls back to plain localStorage so save data always
+     works the same way in both places. ---- */
+  const DATA_PREFIX = 'tinyPlanetsCG_';
+  function dataGet(key) {
+    try {
+      if (sdkAvailable && CG.data && typeof CG.data.getItem === 'function') {
+        return CG.data.getItem(DATA_PREFIX + key);
+      }
+    } catch (e) {}
+    try { return localStorage.getItem(DATA_PREFIX + key); } catch (e) { return null; }
+  }
+  function dataSet(key, value) {
+    try {
+      if (sdkAvailable && CG.data && typeof CG.data.setItem === 'function') {
+        CG.data.setItem(DATA_PREFIX + key, value);
+        return;
+      }
+    } catch (e) {}
+    try { localStorage.setItem(DATA_PREFIX + key, value); } catch (e) {}
+  }
+  function dataGetJSON(key, fallback) {
+    const raw = dataGet(key);
+    if (raw == null) return fallback;
+    try { return JSON.parse(raw); } catch (e) { return fallback; }
+  }
+  function dataSetJSON(key, value) {
+    try { dataSet(key, JSON.stringify(value)); } catch (e) {}
+  }
+
+  /* ----  score submission. Requires an Encryption Key to be
+     configured for this game in the CrazyGames Developer Portal — until
+     that's set up, submitScore is always a safe no-op (matching the rest
+     of this helper's off-platform behavior). CrazyGames doesn't expose a
+     way to read back rankings client-side, so this only ever sends scores
+     up; our own in-game leaderboard panel (elsewhere in the game) reads
+     from the data module above instead. ---- */
+  function submitScore(score) {
+    if (!sdkAvailable) return;
+    try {
+      if (CG.user && typeof CG.user.submitScore === 'function') {
+        CG.user.submitScore({ score });
+      }
+    } catch (e) {
+      console.log('CrazyGames submitScore failed (leaderboard likely not configured for this game):', e);
+    }
+  }
+
+  /* ---- Multiplayer room/invite integration, required for CrazyGames
+     multiplayer game listings. All calls are safe no-ops off-platform. ---- */
+  function updateRoom(opts) {
+    if (!sdkAvailable) return;
+    try { CG.game.updateRoom(opts); } catch (e) {}
+  }
+  function leftRoom() {
+    if (!sdkAvailable) return;
+    try { CG.game.leftRoom(); } catch (e) {}
+  }
+  function getInviteParam(name) {
+    if (!CG) return null;
+    try { return CG.game.getInviteParam(name); } catch (e) { return null; }
+  }
+  // Builds a shareable CrazyGames invite link carrying the given params.
+  // Off-platform, falls back to a plain URL with the same query params so
+  // the "copy invite link" UI still works when testing locally.
+  function inviteLink(params) {
+    if (sdkAvailable) {
+      try { return CG.game.inviteLink(params); } catch (e) {}
+    }
+    const url = new URL(window.location.href);
+    url.search = '';
+    for (const [k, v] of Object.entries(params || {})) url.searchParams.set(k, v);
+    return url.toString();
+  }
+  function addJoinRoomListener(cb) {
+    if (!sdkAvailable) return;
+    try { CG.game.addJoinRoomListener(cb); } catch (e) {}
+  }
+  function isInstantMultiplayer() {
+    if (!CG) return false;
+    try { return !!CG.game.isInstantMultiplayer; } catch (e) { return false; }
+  }
+
+  init();
+
+  return {
+    loadingStop, gameplayStart, gameplayStop, happytime, requestMidgameAd, requestRewardedAd,
+    dataGet, dataSet, dataGetJSON, dataSetJSON, submitScore,
+    updateRoom, leftRoom, getInviteParam, inviteLink, addJoinRoomListener, isInstantMultiplayer,
+    isAvailable: () => sdkAvailable
+  };
+})();
+</script>
 <div id="mainMenu">
-  <h1>🚀 TINY PLANETS TAXI</h1>
-  <div class="sub">30 small worlds. Fly passengers between them.</div>
+  <h1>🚀 SHUTTLE SERVICE</h1>
+  <div class="sub">48 small worlds. Fly passengers between them.</div>
 
   <!-- ROOT MENU -->
   <div class="menuPanel" id="menuRoot">
@@ -473,51 +709,46 @@
   <!-- HOST: ROOM CREATED -->
   <div class="menuPanel" id="menuHosted" style="display:none;">
     <div class="roomCodeDisplay" id="hostedRoomCode">4821-XJQ<span class="hint">📋 Tap to copy • share this so friends can join</span></div>
+    <button class="menuActionBtn menuActionBtnSecondary" id="btnCopyInviteLink">🔗 Copy Invite Link</button>
     <div class="menuStatus ok" id="hostedStatus">🟢 Room open. Waiting for pilots to join…</div>
     <button class="menuActionBtn" id="btnEnterGameHosted">▶️ Start</button>
   </div>
 </div>
 
-<div id="startScreen" style="display:none;">
-  <h1>🚀 TINY PLANETS TAXI</h1>
-  <div class="sub">Pick up passengers and fly them between worlds.</div>
-  <p>
-  <b>W / Up Arrow</b> — thrust forward &nbsp;•&nbsp; <b>A / D</b> or <b>Left / Right</b> — steer<br>
-  <b>S / Down Arrow</b> — reverse thrust &nbsp;•&nbsp; <b>Shift</b> — hold for a large boost (works together with thrust)<br>
-  <b>Scroll</b> — zoom the camera<br>
-  <b>R</b> — restart the shift at any time<br><br>
-  On phone/tablet: the <b>left thumb pad</b> steers and thrusts, and the <b>boost button</b> on the right can be held at the same time. Pinch, or use the <b>+ / −</b> buttons in the top right, to zoom.<br>
-  Hold <b>Shift/Boost</b> for extra thrust when taking off from a planet.<br>
-  Flying low through a planet's clouds adds drag and slows you down.<br>
-  The dotted line shows your predicted flight path.<br>
-  Land gently on a planet with waiting passengers to pick them up, then land at their destination to drop them off.<br>
-  Fare scales with distance.<br>
-  Planets marked ⛽ refuel your tank.
-  </p>
-  <div class="go">👆 Click anywhere to start</div>
-</div>
 <div id="hud"></div>
 <div id="msg"></div>
 <button id="shopButton" type="button" style="display:none;">🛠️ Upgrades</button>
+<button id="refuelButton" type="button" style="display:none;">📺 Watch ad for full refuel</button>
 <div id="shopPanel" style="display:none;">
   <div class="shopInner">
     <div id="shopHeader">
-      <span id="shopTitle">🛠️ Taxi Upgrades</span>
+      <span id="shopTitle">🛠️ Shuttle Upgrades</span>
       <button id="shopClose" type="button" title="Close">✕</button>
     </div>
     <div id="shopCredits">💰 Credits: <b id="shopCreditsAmount">0</b></div>
     <div id="shopList"></div>
   </div>
 </div>
+<div id="leaderboardPanel" style="display:none;">
+  <div class="shopInner">
+    <div id="shopHeader">
+      <span id="shopTitle">🏆 Leaderboard — Total Trips</span>
+      <button id="leaderboardClose" type="button" title="Close">✕</button>
+    </div>
+    <div class="leaderboardHint">Ranked by total deliveries completed. Local pilots + anyone in your current room.</div>
+    <div id="leaderboardList"></div>
+  </div>
+</div>
 <div id="topRightStack">
   <div id="multiplayerToggle" class="offline"><span class="dot"></span> <span id="multiplayerStatusText">🧑‍🚀 Singleplayer</span></div>
   <button id="helpToggle" title="Back to Main Menu">☰</button>
+  <button id="leaderboardButton" type="button" title="Leaderboard">🏆 Leaderboard</button>
   <button id="chatToggle" type="button" title="Toggle chat">💬 Chat<span class="unreadDot"></span></button>
   <button id="musicToggle" type="button" title="Toggle music">🎵</button>
 </div>
 <div id="chatPanel">
   <div id="chatHeader">
-    <span>🗨️ Taxi Chat</span>
+    <span>🗨️ Shuttle Chat</span>
     <span id="chatStatus">Offline</span>
   </div>
   <div id="chatMessages"></div>
@@ -573,7 +804,7 @@ try {
   Peer = mod.Peer || mod.default;
 } catch (err) {
   peerLoadError = err;
-  console.error('[TinyPlanetsTaxi] Failed to load PeerJS networking library:', err);
+  console.error('[ShuttleService] Failed to load PeerJS networking library:', err);
 }
 
 const APP_ID = 'tiny-planets-taxi-v1';
@@ -589,6 +820,7 @@ const netState = {
   sendState: null,
   sendChat: null,
   sendEconomy: null,
+  send: null,
   lobbyRoom: null,
   sendLobbyPing: null,
 };
@@ -635,10 +867,15 @@ function leaveCurrentRoom() {
   netState.sendState = null;
   netState.sendChat = null;
   netState.sendEconomy = null;
+  netState.sendLeaderboard = null;
   window.__netSendState = null;
   window.__netSendChat = null;
   window.__netSendEconomy = null;
+  window.__netSendLeaderboard = null;
   netState.mode = 'singleplayer';
+  // Tell the CrazyGames platform this player is no longer in a joinable
+  // room (hides any invite/room UI it might be showing on our behalf).
+  window.CrazyGamesHelper.leftRoom();
 }
 
 // Bridge for the classic (non-module) game script below, which cannot use
@@ -773,21 +1010,39 @@ function connectToRoom(roomCode, password, nickname, isHost) {
   const room = makeRoom(peer, isHost);
   netState.room = room;
 
+  // Tells the CrazyGames platform this player is now in a room (this
+  // roomCode) that others can be invited into or join — powers the
+  // platform's invite notifications/friends-drawer/room UI. roomId is
+  // namespaced with the app id since PeerJS room codes alone aren't
+  // guaranteed globally unique across every game on the platform.
+  window.CrazyGamesHelper.updateRoom({
+    roomId: `${APP_ID}-${roomCode}`,
+    isJoinable: true,
+    inviteParams: { roomCode, hasPassword: !!(password && password.length > 0) }
+  });
+
   const stateAction = room.makeAction('state');
   const chatAction = room.makeAction('chat');
   const economyAction = room.makeAction('econ');
   const joinInfoAction = room.makeAction('joininfo');
+  const leaderboardAction = room.makeAction('lb');
 
   netState.sendState = stateAction.send;
   netState.sendChat = chatAction.send;
   netState.sendEconomy = economyAction.send;
+  netState.sendLeaderboard = leaderboardAction.send;
   window.__netSendState = stateAction.send;
   window.__netSendChat = chatAction.send;
   window.__netSendEconomy = economyAction.send;
+  window.__netSendLeaderboard = leaderboardAction.send;
 
   function onAnyPeerJoin(peerId) {
     netState.peers.set(peerId, { name: 'Pilot', x: 0, y: 0, vx: 0, vy: 0, angle: 0, credits: 0, ts: performance.now() });
     joinInfoAction.send({ name: netState.nickname }, peerId);
+    if (typeof window.__onGetLeaderboardSnapshot === 'function') {
+      const snapshot = window.__onGetLeaderboardSnapshot();
+      if (snapshot) leaderboardAction.send(snapshot, peerId);
+    }
     if (typeof window.__onMultiplayerChatSystem === 'function') {
       window.__onMultiplayerChatSystem(`🟢 A pilot connected.`);
     }
@@ -825,6 +1080,12 @@ function connectToRoom(roomCode, password, nickname, isHost) {
   economyAction.onMessage = (data, peerId) => {
     if (typeof window.__onMultiplayerEconomy === 'function') {
       window.__onMultiplayerEconomy(data, peerId);
+    }
+  };
+
+  leaderboardAction.onMessage = (data, peerId) => {
+    if (typeof window.__onMultiplayerLeaderboard === 'function') {
+      window.__onMultiplayerLeaderboard(data, peerId);
     }
   };
 
@@ -946,7 +1207,11 @@ const menuJoin = document.getElementById('menuJoin');
 const menuHost = document.getElementById('menuHost');
 const menuHosted = document.getElementById('menuHosted');
 const mainMenuEl = document.getElementById('mainMenu');
-const startScreenEl = document.getElementById('startScreen');
+
+// The menu is now interactive — this is what CrazyGames measures as the
+// end of the loading phase (paired with loadingStart() at the top of body).
+window.CrazyGamesHelper.loadingStop();
+
 
 function showMenuPanel(panel) {
   [menuRoot, menuJoin, menuHost, menuHosted].forEach(p => p.style.display = 'none');
@@ -1024,28 +1289,27 @@ function escapeHtmlMenu(text) {
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-document.getElementById('btnDoJoin').addEventListener('click', () => {
-  const codeRaw = document.getElementById('joinRoomCode').value;
-  const code = slugifyRoomCode(codeRaw);
-  const password = document.getElementById('joinRoomPassword').value;
-  const nick = (document.getElementById('joinNickname').value || '').trim().slice(0, 16) || `Pilot${Math.floor(Math.random()*90+10)}`;
-  const statusEl = document.getElementById('joinStatus');
-
+// Shared join flow, used by the manual "Join Room" button, by invite
+// links (getInviteParam('roomCode')), by the CrazyGames join-room
+// listener (a friend accepted an invite while we're already in-game), and
+// by isInstantMultiplayer (party leader flow). statusEl is optional —
+// invite/instant flows that skip the join menu entirely pass null and
+// surface progress via showMenuPanel(menuJoin)'s own status area instead.
+function joinRoomByCode(code, password, nick, statusEl) {
+  const setStatus = (text, cls) => {
+    if (statusEl) { statusEl.textContent = text; statusEl.className = 'menuStatus' + (cls ? ' ' + cls : ''); }
+  };
   if (!code) {
-    statusEl.textContent = '⚠️ Enter a room code first.';
-    statusEl.className = 'menuStatus err';
+    setStatus('⚠️ Enter a room code first.', 'err');
     return;
   }
   saveNickname(nick);
-  statusEl.textContent = '🔄 Connecting…';
-  statusEl.className = 'menuStatus';
+  setStatus('🔄 Connecting…', '');
 
-  let room;
   try {
-    room = connectToRoom(code, password, nick, false);
+    connectToRoom(code, password, nick, false);
   } catch (err) {
-    statusEl.textContent = "⚠️ Couldn't connect: " + err.message;
-    statusEl.className = 'menuStatus err';
+    setStatus("⚠️ Couldn't connect: " + err.message, 'err');
     return;
   }
 
@@ -1054,8 +1318,7 @@ document.getElementById('btnDoJoin').addEventListener('click', () => {
   // give it a few seconds to find at least one peer before calling it out.
   const joinTimeout = setTimeout(() => {
     if (netState.peers.size === 0) {
-      statusEl.textContent = "⚠️ Couldn't find anyone in that room. Double-check the code and password, or the room may be empty/offline.";
-      statusEl.className = 'menuStatus err';
+      setStatus("⚠️ Couldn't find anyone in that room. Double-check the code and password, or the room may be empty/offline.", 'err');
     }
   }, 6000);
 
@@ -1063,8 +1326,7 @@ document.getElementById('btnDoJoin').addEventListener('click', () => {
     if (netState.peers.size > 0) {
       clearInterval(checkConnected);
       clearTimeout(joinTimeout);
-      statusEl.textContent = `✅ Connected! ${netState.peers.size} pilot(s) already here.`;
-      statusEl.className = 'menuStatus ok';
+      setStatus(`✅ Connected! ${netState.peers.size} pilot(s) already here.`, 'ok');
       setTimeout(() => enterGame(), 500);
     }
   }, 300);
@@ -1072,10 +1334,17 @@ document.getElementById('btnDoJoin').addEventListener('click', () => {
   // Also allow entering even if alone in a freshly-made room with this code/password combo
   window.__joinAloneTimer = setTimeout(() => {
     if (netState.room && netState.peers.size === 0) {
-      statusEl.textContent = '🟢 Room open — no one else here yet. You can still fly and others can join you.';
-      statusEl.className = 'menuStatus ok';
+      setStatus('🟢 Room open — no one else here yet. You can still fly and others can join you.', 'ok');
     }
   }, 6200);
+}
+
+document.getElementById('btnDoJoin').addEventListener('click', () => {
+  const codeRaw = document.getElementById('joinRoomCode').value;
+  const code = slugifyRoomCode(codeRaw);
+  const password = document.getElementById('joinRoomPassword').value;
+  const nick = (document.getElementById('joinNickname').value || '').trim().slice(0, 16) || `Pilot${Math.floor(Math.random()*90+10)}`;
+  joinRoomByCode(code, password, nick, document.getElementById('joinStatus'));
 });
 
 document.getElementById('btnDoHost').addEventListener('click', () => {
@@ -1121,6 +1390,29 @@ document.getElementById('hostedRoomCode').addEventListener('click', () => {
   }
 });
 
+document.getElementById('btnCopyInviteLink').addEventListener('click', async () => {
+  const statusEl = document.getElementById('hostedStatus');
+  const code = netState.roomCode;
+  if (!code) return;
+  try {
+    // Off-platform this resolves to a plain URL with ?roomCode=... query
+    // params (see CrazyGamesHelper.inviteLink's fallback) so the button
+    // still works the same way outside of CrazyGames.
+    const link = await window.CrazyGamesHelper.inviteLink({ roomCode: code });
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(link);
+      statusEl.textContent = '🔗 Invite link copied! Anyone who opens it joins this room directly.';
+      statusEl.className = 'menuStatus ok';
+    } else {
+      statusEl.textContent = '🔗 Invite link: ' + link;
+      statusEl.className = 'menuStatus ok';
+    }
+  } catch (e) {
+    statusEl.textContent = "⚠️ Couldn't create an invite link.";
+    statusEl.className = 'menuStatus err';
+  }
+});
+
 document.getElementById('btnEnterGameHosted').addEventListener('click', () => enterGame());
 
 document.getElementById('helpToggle').addEventListener('click', () => {
@@ -1134,6 +1426,7 @@ document.getElementById('helpToggle').addEventListener('click', () => {
   document.getElementById('chatToggle').classList.remove('mpActive', 'hasUnread');
   window.__gameStarted = false;
   playMenuMusic();
+  window.CrazyGamesHelper.gameplayStop();
 });
 
 /* ---- Music manager ----
@@ -1149,6 +1442,19 @@ const musicToggleBtn = document.getElementById('musicToggle');
 const MUSIC_VOLUME = 0.45;
 let musicUnlocked = false;
 let musicMuted = localStorage.getItem('tinyPlanetsMusicMuted') === 'true';
+// Platform-level mute (from CrazyGames' game.settings.muteAudio) always
+// takes priority over the user's local mute preference — see safePlay().
+let cgExternalMute = false;
+window.__cgSetExternalMute = function(muted) {
+  cgExternalMute = muted;
+  if (muted) {
+    if (menuMusicEl) menuMusicEl.pause();
+    if (flightMusicEl) flightMusicEl.pause();
+  } else if (musicUnlocked && !musicMuted) {
+    if (mainMenuEl.classList.contains('hidden')) playFlightMusic();
+    else playMenuMusic();
+  }
+};
 
 [menuMusicEl, flightMusicEl].forEach(el => { if (el) el.volume = MUSIC_VOLUME; });
 
@@ -1160,7 +1466,7 @@ function updateMusicToggleUI() {
 updateMusicToggleUI();
 
 function safePlay(el) {
-  if (!el || musicMuted || !musicUnlocked) return;
+  if (!el || musicMuted || cgExternalMute || !musicUnlocked) return;
   const p = el.play();
   if (p && p.catch) p.catch(() => {}); // ignore autoplay rejections
 }
@@ -1226,9 +1532,9 @@ function enterGame() {
     document.getElementById('chatPanel').style.display = 'none';
     document.getElementById('chatToggle').classList.remove('mpActive');
   }
-  startScreenEl.style.display = window.matchMedia('(max-width: 900px)').matches ? 'flex' : 'none';
   window.__gameStarted = true;
   playFlightMusic();
+  window.CrazyGamesHelper.gameplayStart();
 }
 </script>
 
@@ -1370,16 +1676,19 @@ function enterGame() {
 
   // ---- World setup ----
   const MASS_FACTOR = 0.09;
-  const DISTANCE_SCALE = 4.0;
+  // Bumped from 4.0 so the whole system is noticeably bigger/further apart —
+  // longer hauls, more coasting between planets.
+  const DISTANCE_SCALE = 5.6;
   const G = 0.35;
   let timeScale = 1;
-  const TIMEWARP_STEPS = [0.5, 1, 2, 4, 5, 8, 12, 24, 32, 44];
+  const TIMEWARP_STEPS = [0.5, 1, 2, 4, 5, 8, 12, 24, 32, 44, 64, 74, 80];
   const MIN_TIME_SCALE = 0.5;
-  const MAX_TIME_SCALE = 24;
+  const MAX_TIME_SCALE = 80;
   const persistedCredits = Number(localStorage.getItem('tinyPlanetsCredits') || 0);
 
   const planets = [
     { name: "Home",      x: 0,      y: 0,      r: 1000, mass: 5.5e8, color: "#c9a86b", atmo: "#8fc2e8", atmoDepth: 520, station: true,  gasStation: true,  craters: 5, rings: true, detailColor: "#a4855a", clouds: true },
+    { name: "Duna",      x: -950,   y: -520,   r: 850,  mass: 4.6e8, color: "#e0956a", atmo: "#ffb98a", atmoDepth: 460, station: true,  gasStation: true,  craters: 4, rings: false, detailColor: "#a45f3a", clouds: true },
     { name: "Aequor",      x: 6200,   y: -2600,  r: 650,  mass: 2.6e8, color: "#7fb8d6", atmo: "#8fc0ff", atmoDepth: 420, station: true,  gasStation: false, craters: 2, rings: true,  detailColor: "#eaf3ff", clouds: true },
     { name: "Ferrugo",     x: -5400,  y: 3800,   r: 800,  mass: 3.4e8, color: "#c98aa8", atmo: "#ffa88a", atmoDepth: 380, station: true, gasStation: true,  craters: 5, rings: false, detailColor: "#8a5a70", clouds: true },
     { name: "Musco",       x: 2200,   y: 6800,   r: 450,  mass: 1.4e8, color: "#8fc97a", atmo: "#b8ecA0", atmoDepth: 340, station: true,  gasStation: false, craters: 1, rings: false, detailColor: "#5f9a55", clouds: true },
@@ -1409,7 +1718,22 @@ function enterGame() {
     { name: "Scarlet",     x: 3138,   y: -8193,  r: 579,  mass: 1.0e8, color: "#d67a7a", atmo: "#ffa0a0", atmoDepth: 220, station: true,  gasStation: false, craters: 4, rings: false, detailColor: "#914848", clouds: false },
     { name: "Aurum",       x: 2164,   y: -4022,  r: 512,  mass: 1.9e8, color: "#e0b46a", atmo: "#ffd98a", atmoDepth: 240, station: true,  gasStation: true,  craters: 3, rings: false, detailColor: "#ab7f3f", clouds: true },
     { name: "Chloris",     x: 6966,   y: -7544,  r: 328,  mass: 1.6e8, color: "#7ab060", atmo: "#a0e080", atmoDepth: 400, station: true, gasStation: false, craters: 2, rings: false, detailColor: "#4d7a3a", clouds: true },
-    { name: "Mun",     x: 1000,   y: 220,  r: 180,  mass: 5.5e7, color: "#d0d0d8", atmo: null, atmoDepth: 0, station: true, gasStation: false, craters: 0, rings: true, detailColor: "#b0b0c0", clouds: false },
+    { name: "Halcyon", x: 5879, y: 916, r: 838, mass: 1.4e8, color: "#7fb8d6", atmo: "#8fc0ff", atmoDepth: 374, station: true, gasStation: true, craters: 3, rings: true, detailColor: "#eaf3ff", clouds: true },
+    { name: "Marrow", x: -899, y: -3026, r: 286, mass: 5.1e8, color: "#c98aa8", atmo: "#ffa88a", atmoDepth: 415, station: true, gasStation: true, craters: 1, rings: false, detailColor: "#8a5a70", clouds: true },
+    { name: "Cobalt", x: 3400, y: -9800, r: 1027, mass: 3.5e8, color: "#8fc97a", atmo: "#b8ecA0", atmoDepth: 380, station: true, gasStation: false, craters: 0, rings: false, detailColor: "#5f9a55", clouds: true },
+    { name: "Ashen", x: -9200, y: 6100, r: 576, mass: 6.4e8, color: "#7a7f95", atmo: "#9aa0c0", atmoDepth: 382, station: true, gasStation: true, craters: 6, rings: true, detailColor: "#565a70", clouds: true },
+    { name: "Tallow", x: 8210, y: -13357, r: 353, mass: 4.3e8, color: "#a476c9", atmo: "#c8a0f0", atmoDepth: 289, station: true, gasStation: false, craters: 1, rings: false, detailColor: "#6d4a92", clouds: true },
+    { name: "Quartz", x: -11196, y: -13288, r: 514, mass: 5.5e8, color: "#e0edf8", atmo: "#f0f8ff", atmoDepth: 365, station: true, gasStation: true, craters: 6, rings: false, detailColor: "#b8d0e8", clouds: true },
+    { name: "Nimbus", x: -6727, y: 13730, r: 551, mass: 1.7e8, color: "#e0b46a", atmo: "#ffd98a", atmoDepth: 369, station: true, gasStation: false, craters: 5, rings: false, detailColor: "#ab7f3f", clouds: true },
+    { name: "Solder", x: 4200, y: -11800, r: 392, mass: 1.8e8, color: "#d67a7a", atmo: "#ff9a9a", atmoDepth: 317, station: true, gasStation: true, craters: 1, rings: false, detailColor: "#914848", clouds: true },
+    { name: "Bramble", x: 14620, y: -2768, r: 397, mass: 4.7e8, color: "#7ab060", atmo: "#a0e080", atmoDepth: 295, station: true, gasStation: true, craters: 4, rings: false, detailColor: "#4d7a3a", clouds: false },
+    { name: "Ochre", x: -10719, y: -3453, r: 462, mass: 3.7e8, color: "#bb9066", atmo: "#d0b080", atmoDepth: 375, station: true, gasStation: false, craters: 0, rings: false, detailColor: "#7f5f3f", clouds: true },
+    { name: "Vellum", x: 13919, y: -14096, r: 893, mass: 2.7e8, color: "#cfcfd8", atmo: null, atmoDepth: 0, station: true, gasStation: true, craters: 0, rings: true, detailColor: "#a0a0ac", clouds: false },
+    { name: "Zephyr", x: 8508, y: 19551, r: 1029, mass: 3.6e8, color: "#7fb8d6", atmo: "#8fc0ff", atmoDepth: 388, station: true, gasStation: true, craters: 0, rings: false, detailColor: "#eaf3ff", clouds: true },
+    { name: "Corvid", x: 18406, y: -5569, r: 832, mass: 5.1e8, color: "#c98aa8", atmo: "#ffa88a", atmoDepth: 386, station: true, gasStation: false, craters: 5, rings: true, detailColor: "#8a5a70", clouds: true },
+    { name: "Thistle", x: 13328, y: 9589, r: 847, mass: 2.2e8, color: "#8fc97a", atmo: "#b8ecA0", atmoDepth: 237, station: true, gasStation: true, craters: 1, rings: true, detailColor: "#5f9a55", clouds: true },
+    { name: "Umbral", x: 15524, y: 16405, r: 415, mass: 5.0e8, color: "#7a7f95", atmo: "#9aa0c0", atmoDepth: 324, station: true, gasStation: false, craters: 4, rings: false, detailColor: "#565a70", clouds: true },
+    { name: "Mun",     x: -475,   y: -260,  r: 180,  mass: 5.5e7, color: "#d0d0d8", atmo: null, atmoDepth: 0, station: true, gasStation: false, craters: 0, rings: true, detailColor: "#b0b0c0", clouds: false },
 {
     name: "Glix",
     x: 0,
@@ -1428,10 +1752,12 @@ function enterGame() {
 },
   ];
 
-  for (const p of planets) {
-    p.x *= DISTANCE_SCALE;
-    p.y *= DISTANCE_SCALE;
-    p.mass *= MASS_FACTOR;
+  // Builds the decorative detail data (craters, surface patches, cloud
+  // puffs, rotation/spin) for a planet. Originally this was inline in the
+  // hand-authored setup loop below; it's now a standalone function so the
+  // procedural generator (further down) can produce fully-detailed planets
+  // too, using the exact same visual language as the hand-built system.
+  function decoratePlanet(p) {
     p.craterSpots = [];
     for (let i = 0; i < p.craters; i++) {
       const ang = (i / p.craters) * Math.PI * 2 + (i * 1.7);
@@ -1481,15 +1807,17 @@ function enterGame() {
     }
   }
 
-  // ---- Multiplayer: real peer ghosts, driven by the Trystero room ----
-  function isMultiplayerActive() {
-    return window.__netState && window.__netState.mode === 'multiplayer' && window.__netState.room;
-  }
-  function getLivePeers() {
-    if (!isMultiplayerActive()) return [];
-    return [...window.__netState.peers.entries()].map(([id, p]) => ({ id, ...p }));
+  for (const p of planets) {
+    p.x *= DISTANCE_SCALE;
+    p.y *= DISTANCE_SCALE;
+    p.mass *= MASS_FACTOR;
+    decoratePlanet(p);
   }
 
+  // worldBounds/worldW/worldH and stationPlanets are declared with `let`
+  // (not `const`) because procedural generation further down grows the
+  // known world at runtime and needs to extend the map bounds and the
+  // list of station planets as new groups are discovered.
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const p of planets) {
     minX = Math.min(minX, p.x - p.r);
@@ -1497,9 +1825,9 @@ function enterGame() {
     minY = Math.min(minY, p.y - p.r);
     maxY = Math.max(maxY, p.y + p.r);
   }
-  const worldBounds = { minX, maxX, minY, maxY };
-  const worldW = maxX - minX;
-  const worldH = maxY - minY;
+  let worldBounds = { minX, maxX, minY, maxY };
+  let worldW = maxX - minX;
+  let worldH = maxY - minY;
 
   const stationPlanets = planets.filter(p => p.station);
   for (const p of stationPlanets) p.waiting = 0;
@@ -1508,6 +1836,188 @@ function enterGame() {
     excludePlanet.waiting = Math.min(excludePlanet.waiting + 1, 3);
   }
   for (const p of stationPlanets) p.waiting = 1 + Math.floor(Math.random() * 2);
+
+  // ---- Procedural planet groups ----
+  // Beyond the hand-built local system, further "planet groups" (small
+  // clusters of 4-7 worlds, echoing how the hand-built system is laid out)
+  // generate on the fly as the player's unlocked delivery range grows past
+  // the edge of what currently exists. Everything is derived from a
+  // deterministic seeded RNG so the same region always generates the same
+  // way (important for multiplayer: every peer independently generates
+  // identical planets for a given region, without needing to network them).
+  const PROC_GROUP_RING_SPACING = 26000;   // radial distance between successive rings of groups
+  const PROC_GROUP_ANGLE_COUNT = 6;        // groups per ring
+  const PROC_GROUP_RADIUS = 9000;          // how spread out planets within one group are
+  const PROC_PLANETS_MIN = 4;
+  const PROC_PLANETS_MAX = 7;
+  const PROC_GEN_LOOKAHEAD = 12000;        // start generating this far before the ship actually needs it
+
+  // Mulberry32 seeded PRNG — small, fast, deterministic.
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function() {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function hashSeed(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  const PROC_NAME_PARTS_A = ['Xen', 'Cor', 'Vel', 'Nyx', 'Zar', 'Lum', 'Pyx', 'Ква', 'Bre', 'Dro', 'Fen', 'Gло', 'Hyl', 'Iso', 'Jov', 'Kry', 'Myr', 'Oru', 'Qua', 'Ryl', 'Sol', 'Tau', 'Uxa', 'Vor', 'Wyn', 'Yth'];
+  const PROC_NAME_PARTS_B = ['tara', 'dris', 'nova', 'lith', 'mora', 'xion', 'vale', 'seth', 'quil', 'ryth', 'onis', 'ande', 'osis', 'aria', 'endo', 'ovex', 'ulis', 'ynth'];
+  function proceduralPlanetName(rng) {
+    const a = PROC_NAME_PARTS_A[Math.floor(rng() * PROC_NAME_PARTS_A.length)];
+    const b = PROC_NAME_PARTS_B[Math.floor(rng() * PROC_NAME_PARTS_B.length)];
+    return a + b;
+  }
+
+  const PROC_PALETTES = [
+    { color: "#e0956a", atmo: "#ffb98a", detailColor: "#a45f3a" }, // desert/rust
+    { color: "#7fb8d6", atmo: "#8fc0ff", detailColor: "#eaf3ff" }, // ice/ocean
+    { color: "#c98aa8", atmo: "#ffa88a", detailColor: "#8a5a70" }, // magenta
+    { color: "#8fc97a", atmo: "#b8ecA0", detailColor: "#5f9a55" }, // verdant
+    { color: "#7a7f95", atmo: "#9aa0c0", detailColor: "#565a70" }, // slate/rock
+    { color: "#a476c9", atmo: "#c8a0f0", detailColor: "#6d4a92" }, // violet
+    { color: "#e0b46a", atmo: "#ffd98a", detailColor: "#ab7f3f" }, // gold
+    { color: "#d67a7a", atmo: "#ff9a9a", detailColor: "#914848" }, // crimson
+    { color: "#e0edf8", atmo: "#f0f8ff", detailColor: "#b8d0e8" }, // pale/frost
+    { color: "#cfcfd8", atmo: null,      detailColor: "#a0a0ac" }, // airless rock
+  ];
+
+  // Which ring/angle group-cells have already been generated, so we never
+  // duplicate a region (keyed "ring:angleIndex").
+  const generatedGroupCells = new Set();
+  let furthestGeneratedRadius = 0;
+
+  // Deterministically generates one cluster of planets ("planet group") for
+  // a given ring index and angular slot. Mirrors the hand-built system's
+  // look: a mix of stations/gas stations, craters, rings, clouds.
+  function generatePlanetGroup(ring, angleIdx) {
+    return; // Procedural planets disabled
+    const cellKey = ring + ':' + angleIdx;
+    if (generatedGroupCells.has(cellKey)) return;
+    generatedGroupCells.add(cellKey);
+
+    const seed = hashSeed(`tinyplanets-group-${ring}-${angleIdx}`);
+    const rng = mulberry32(seed);
+
+    const baseAngle = (angleIdx / PROC_GROUP_ANGLE_COUNT) * Math.PI * 2 + ring * 0.6;
+    const baseDist = (ring + 1) * PROC_GROUP_RING_SPACING;
+    const groupCx = Math.cos(baseAngle) * baseDist;
+    const groupCy = Math.sin(baseAngle) * baseDist;
+
+    const count = PROC_PLANETS_MIN + Math.floor(rng() * (PROC_PLANETS_MAX - PROC_PLANETS_MIN + 1));
+    const newPlanets = [];
+    for (let i = 0; i < count; i++) {
+      const ang = (i / count) * Math.PI * 2 + rng() * 1.2;
+      const dist = PROC_GROUP_RADIUS * (0.25 + rng() * 0.85);
+      const palette = PROC_PALETTES[Math.floor(rng() * PROC_PALETTES.length)];
+      const r = 280 + Math.floor(rng() * 900);
+      const hasAtmo = !!palette.atmo && rng() > 0.15;
+      const p = {
+        name: proceduralPlanetName(rng),
+        x: groupCx + Math.cos(ang) * dist,
+        y: groupCy + Math.sin(ang) * dist,
+        r,
+        mass: (1.0e8 + rng() * 5.5e8) * MASS_FACTOR,
+        color: palette.color,
+        atmo: hasAtmo ? palette.atmo : null,
+        atmoDepth: hasAtmo ? Math.round(200 + rng() * 300) : 0,
+        station: rng() > 0.08,             // almost all procedural worlds are stations
+        gasStation: rng() > 0.4,
+        craters: Math.floor(rng() * 7),
+        rings: rng() > 0.75,
+        detailColor: palette.detailColor,
+        clouds: hasAtmo && rng() > 0.35,
+        procedural: true
+      };
+      decoratePlanet(p);
+      newPlanets.push(p);
+      planets.push(p);
+    }
+
+    for (const p of newPlanets) {
+      if (p.station) {
+        stationPlanets.push(p);
+        p.waiting = 1 + Math.floor(rng() * 2);
+      }
+    }
+
+    // Keep the derived world bounds / minimap scale in sync with newly
+    // added planets so the map continues to frame the whole known system.
+    for (const p of newPlanets) {
+      worldBounds.minX = Math.min(worldBounds.minX, p.x - p.r);
+      worldBounds.maxX = Math.max(worldBounds.maxX, p.x + p.r);
+      worldBounds.minY = Math.min(worldBounds.minY, p.y - p.r);
+      worldBounds.maxY = Math.max(worldBounds.maxY, p.y + p.r);
+    }
+    worldW = worldBounds.maxX - worldBounds.minX;
+    worldH = worldBounds.maxY - worldBounds.minY;
+
+    const groupOuterRadius = baseDist + PROC_GROUP_RADIUS;
+    if (groupOuterRadius > furthestGeneratedRadius) furthestGeneratedRadius = groupOuterRadius;
+
+    showMsg(`🛰️ New planet group discovered: ${newPlanets.length} worlds charted nearby.`, 3);
+  }
+
+  // The final "Deep space" tier's maxDist is effectively unbounded
+  // (999999) so it can't be used directly as a generation radius — that
+  // would try to generate hundreds of groups (thousands of planets) in a
+  // single frame. Cap how far out we'll ever eagerly generate; once tiers
+  // exceed this, groups are instead generated lazily as the ship actually
+  // approaches the edge of the known map (see the ship-position hook).
+  const PROC_MAX_EAGER_RADIUS = 90000;
+
+  // Ensures every group whose ring falls within reach of `radius` (plus a
+  // lookahead margin) has been generated. Called once per frame with the
+  // player's current unlocked delivery range — see the tier-check hook
+  // further down where getMaxDistanceForTier() is available. The radius is
+  // clamped so an "unlimited" tier doesn't generate the whole galaxy at once.
+  function ensureGroupsGeneratedUpTo(radius) {
+    return; // Procedural planets disabled
+    const targetRadius = Math.min(radius, PROC_MAX_EAGER_RADIUS) + PROC_GEN_LOOKAHEAD;
+    const maxRing = Math.floor(targetRadius / PROC_GROUP_RING_SPACING);
+    for (let ring = 0; ring <= maxRing; ring++) {
+      for (let angleIdx = 0; angleIdx < PROC_GROUP_ANGLE_COUNT; angleIdx++) {
+        generatePlanetGroup(ring, angleIdx);
+      }
+    }
+  }
+
+  // For deep-space play (past PROC_MAX_EAGER_RADIUS), generate groups based
+  // on the ship's actual distance from the origin instead of the tier's
+  // nominal (unbounded) max — so exploring further keeps revealing new
+  // groups without ever trying to build the whole map at once.
+  function ensureGroupsGeneratedNearShip(shipX, shipY) {
+    return; // Procedural planets disabled
+    const shipDist = Math.hypot(shipX, shipY);
+    if (shipDist <= PROC_MAX_EAGER_RADIUS) return;
+    const targetRadius = shipDist + PROC_GEN_LOOKAHEAD;
+    const minRing = Math.floor((shipDist - PROC_GEN_LOOKAHEAD) / PROC_GROUP_RING_SPACING) - 1;
+    const maxRing = Math.floor(targetRadius / PROC_GROUP_RING_SPACING);
+    for (let ring = Math.max(0, minRing); ring <= maxRing; ring++) {
+      for (let angleIdx = 0; angleIdx < PROC_GROUP_ANGLE_COUNT; angleIdx++) {
+        generatePlanetGroup(ring, angleIdx);
+      }
+    }
+  }
+
+  // ---- Multiplayer: real peer ghosts, driven by the Trystero room ----
+  function isMultiplayerActive() {
+    return window.__netState && window.__netState.mode === 'multiplayer' && window.__netState.room;
+  }
+  function getLivePeers() {
+    if (!isMultiplayerActive()) return [];
+    return [...window.__netState.peers.entries()].map(([id, p]) => ({ id, ...p }));
+  }
 
   function pickRandomOtherStation(exclude) {
     const options = stationPlanets.filter(p => p !== exclude);
@@ -1571,22 +2081,35 @@ function enterGame() {
   }
 
   const BASE_FARE = 8;
-  const FARE_PER_1000 = 2.5;
+  // Fare-per-distance now ramps up slowly with career progress instead of
+  // being a flat rate — early trips pay modestly even over real distance,
+  // and the per-unit rate creeps up as you rack up trips/upgrades, so fares
+  // "go slowly further and further" as your career advances.
+  const FARE_PER_1000_BASE = 1.6;
+  const FARE_PER_1000_MAX = 3.2;
+  const FARE_RAMP_PROGRESS = 40; // trips+upgrades to reach the max rate
+
   // ---- Distance progression: destinations start close and unlock
-  // farther planets as you complete trips and buy upgrades.
+  // farther planets as you complete trips and buy upgrades. Thresholds are
+  // stretched out (and there are more of them) so the career arc is a slow
+  // climb rather than something maxed out in the first few runs.
   const DISTANCE_TIERS = [
-    { maxDist: 3500,  label: "Local" },       // Mun, Sylva, nearby
-    { maxDist: 8000,  label: "Nearby" },      // Inner cluster
-    { maxDist: 13000, label: "Regional" },    // Mid-range worlds
-    { maxDist: 18000, label: "Long-haul" },   // Far worlds
-    { maxDist: 999999, label: "Deep space" }  // Everything (Cinnamon, Navy, etc.)
+    { maxDist: 5000,   label: "Local" },
+    { maxDist: 10000,  label: "Nearby" },
+    { maxDist: 16000,  label: "Regional" },
+    { maxDist: 24000,  label: "Cross-system" },
+    { maxDist: 34000,  label: "Long-haul" },
+    { maxDist: 46000,  label: "Frontier" },
+    { maxDist: 999999, label: "Deep space" }
   ];
   let lastAnnouncedTier = -1;
 
   function getDistanceTier() {
     const upgradeCount = Object.values(upgradeLevels).reduce((a, b) => a + b, 0);
     const progress = ship.tripsCompleted + upgradeCount;
-    return Math.min(Math.floor(progress / 3), DISTANCE_TIERS.length - 1);
+    // Slower climb: was progress/3, now progress/6, so it takes twice as
+    // many trips/upgrades to unlock each further tier.
+    return Math.min(Math.floor(progress / 6), DISTANCE_TIERS.length - 1);
   }
 
   function getMaxDistanceForTier(tier) {
@@ -1597,19 +2120,114 @@ function enterGame() {
     return DISTANCE_TIERS[tier].label;
   }
 
+  function getFarePer1000() {
+    const upgradeCount = Object.values(upgradeLevels).reduce((a, b) => a + b, 0);
+    const progress = ship.tripsCompleted + upgradeCount;
+    const frac = Math.min(1, progress / FARE_RAMP_PROGRESS);
+    return FARE_PER_1000_BASE + (FARE_PER_1000_MAX - FARE_PER_1000_BASE) * frac;
+  }
+
   function calcFare(fromPlanet, toPlanet) {
     const dist = Math.hypot(toPlanet.x - fromPlanet.x, toPlanet.y - fromPlanet.y);
-    return Math.round(BASE_FARE + (dist / 1000) * FARE_PER_1000);
+    return Math.round(BASE_FARE + (dist / 1000) * getFarePer1000());
   }
 
   // Shared economy: when playing multiplayer, credits earned are broadcast
-  // so everyone's "Total earned" reflects the shared taxi company's takings.
+  // so everyone's "Total earned" reflects the shared shuttle company's takings.
   window.__onMultiplayerEconomy = function(data, peerId) {
     if (!data || typeof data.creditsDelta !== 'number') return;
     ship.credits += data.creditsDelta;
     localStorage.setItem('tinyPlanetsCredits', ship.credits);
     if (data.note) showMsg(data.note, 2.5);
   };
+
+  // ---- Leaderboard (ranked by total trips completed) ----
+  // CrazyGames doesn't expose a client-side way to fetch/display rankings
+  // — their real leaderboard is invite-only, configured in the developer
+  // portal, and rendered by the platform itself (see submitScore below,
+  // which still reports scores there once that's set up). This is our own
+  // in-game leaderboard: it persists each pilot's best "total trips
+  // completed" run using CrazyGames' data module (synced to the player's
+  // account when logged in, and to localStorage otherwise — see
+  // dataGetJSON/dataSetJSON in CrazyGamesHelper). In multiplayer, every
+  // peer also broadcasts their trip count so everyone's local board can
+  // show the rest of the room, without needing a real backend.
+  const LEADERBOARD_KEY = 'leaderboard';
+  const LEADERBOARD_MAX_ENTRIES = 50;
+
+  function loadLeaderboard() {
+    return window.CrazyGamesHelper.dataGetJSON(LEADERBOARD_KEY, []);
+  }
+  function saveLeaderboard(entries) {
+    window.CrazyGamesHelper.dataSetJSON(LEADERBOARD_KEY, entries);
+  }
+
+  // Records/updates this pilot's best-known result. Keeps only the single
+  // best (highest trips) entry per nickname, sorted descending.
+  function recordLeaderboardResult(nickname, trips, credits) {
+    const name = (nickname || 'Pilot').trim().slice(0, 16) || 'Pilot';
+    const entries = loadLeaderboard();
+    const existingIdx = entries.findIndex(e => e.name === name);
+    const newEntry = { name, trips, credits, ts: Date.now() };
+    if (existingIdx === -1) {
+      entries.push(newEntry);
+    } else if (entries[existingIdx].trips < trips) {
+      entries[existingIdx] = newEntry;
+    } else {
+      return; // existing local best is already >= this run — nothing to update
+    }
+    entries.sort((a, b) => b.trips - a.trips);
+    saveLeaderboard(entries.slice(0, LEADERBOARD_MAX_ENTRIES));
+  }
+
+  // Peers seen this session via multiplayer (name -> {trips, credits}),
+  // merged into the displayed leaderboard alongside the persisted local
+  // entries so the board reflects who's actually in the room too.
+  const sessionPeerScores = new Map();
+  window.__onMultiplayerLeaderboard = function(data, peerId) {
+    if (!data || typeof data.trips !== 'number') return;
+    const name = String(data.name || 'Pilot').slice(0, 16);
+    sessionPeerScores.set(peerId, { name, trips: data.trips, credits: data.credits || 0 });
+  };
+
+  let lastBroadcastTrips = -1;
+  function maybeBroadcastLeaderboardProgress() {
+    if (!isMultiplayerActive() || !window.__netSendLeaderboard) return;
+    if (ship.tripsCompleted === lastBroadcastTrips) return;
+    lastBroadcastTrips = ship.tripsCompleted;
+    window.__netSendLeaderboard({
+      name: chatState.nick || 'Pilot',
+      trips: ship.tripsCompleted,
+      credits: ship.credits
+    });
+  }
+  // Lets a freshly-joined peer immediately learn this pilot's current trip
+  // count (instead of waiting for the next completed trip to hear about
+  // it) — called from the networking layer right after a peer connects.
+  window.__onGetLeaderboardSnapshot = function() {
+    return { name: chatState.nick || 'Pilot', trips: ship.tripsCompleted, credits: ship.credits };
+  };
+
+  function getCombinedLeaderboardRows() {
+    const rows = new Map(); // name -> {name, trips, credits}
+    for (const e of loadLeaderboard()) rows.set(e.name, { name: e.name, trips: e.trips, credits: e.credits });
+    // This session's own live run always reflects current progress, even
+    // before a new personal best gets persisted.
+    const myName = chatState.nick || 'Pilot';
+    const mine = rows.get(myName);
+    if (!mine || ship.tripsCompleted > mine.trips) {
+      rows.set(myName, { name: myName, trips: ship.tripsCompleted, credits: ship.credits, isMe: true });
+    } else {
+      mine.isMe = true;
+    }
+    for (const p of sessionPeerScores.values()) {
+      const existing = rows.get(p.name);
+      if (!existing || p.trips > existing.trips) {
+        rows.set(p.name, { name: p.name, trips: p.trips, credits: p.credits });
+      }
+    }
+    return [...rows.values()].sort((a, b) => b.trips - a.trips).slice(0, LEADERBOARD_MAX_ENTRIES);
+  }
 
   function handleStationArrival(planet) {
     const arriving = ship.passengers.filter(pax => pax.destination === planet);
@@ -1627,6 +2245,13 @@ function enterGame() {
         showMsg(`📈 Reputation up! Destinations now unlocked: ${tierInfo.label} (up to ${tierInfo.maxDist >= 999999 ? 'anywhere' : Math.round(tierInfo.maxDist/1000) + 'k'} units)`, 4);
       }
       showMsg(`✅ Trip complete. Dropped off ${arriving.length} passenger${arriving.length > 1 ? 's' : ''} at ${planet.name} — fare: 💰${totalFare}`, 3);
+      recordLeaderboardResult(chatState.nick || 'Pilot', ship.tripsCompleted, ship.credits);
+      maybeBroadcastLeaderboardProgress();
+      // Total trips completed is what our leaderboard ranks by, so that's
+      // what gets reported to the real CrazyGames leaderboard too (once an
+      // Encryption Key is configured for this game in the dev portal —
+      // until then this call is a harmless no-op).
+      window.CrazyGamesHelper.submitScore(ship.tripsCompleted);
       spawnWalkers(planet, arriving.length, 'fromShip');
       for (let i = 0; i < arriving.length; i++) {
         const origin = pickRandomOtherStation(planet);
@@ -1709,33 +2334,33 @@ function enterGame() {
     thrust: {
       label: 'Thrust', icon: '🚀',
       tiers: [
-        { cost: 60,  value: 0.42, desc: 'Stronger main engine' },
-        { cost: 150, value: 0.58, desc: 'Reinforced engine mounts' },
-        { cost: 320, value: 0.78, desc: 'Twin-nozzle refit' }
+        { cost: 130, value: 0.36, desc: 'Stronger main engine' },
+        { cost: 340, value: 0.42, desc: 'Reinforced engine mounts' },
+        { cost: 700, value: 0.50, desc: 'Twin-nozzle refit' }
       ]
     },
     maxFuel: {
       label: 'Fuel Tank', icon: '🛢️',
       tiers: [
-        { cost: 50,  value: 140, desc: 'Auxiliary fuel cell' },
-        { cost: 130, value: 190, desc: 'Expanded tank' },
-        { cost: 280, value: 260, desc: 'Long-haul tank' }
+        { cost: 110, value: 118, desc: 'Auxiliary fuel cell' },
+        { cost: 290, value: 140, desc: 'Expanded tank' },
+        { cost: 620, value: 165, desc: 'Long-haul tank' }
       ]
     },
     fuelBurnRate: {
       label: 'Fuel Efficiency', icon: '⚡',
       tiers: [
-        { cost: 55,  value: 8,   desc: 'Tuned injectors' },
-        { cost: 140, value: 5.5, desc: 'Efficient burn cycle' },
-        { cost: 300, value: 3.5, desc: 'High-efficiency drive' }
+        { cost: 120, value: 9.8, desc: 'Tuned injectors' },
+        { cost: 310, value: 8.8, desc: 'Efficient burn cycle' },
+        { cost: 660, value: 7.8, desc: 'High-efficiency drive' }
       ]
     },
     maxSeats: {
       label: 'Passenger Seats', icon: '🧑‍🤝‍🧑',
       tiers: [
-        { cost: 90,  value: 4, desc: 'Add a fourth seat' },
-        { cost: 220, value: 5, desc: 'Add a fifth seat' },
-        { cost: 400, value: 6, desc: 'Full cabin refit' }
+        { cost: 200, value: 4, desc: 'Add a fourth seat' },
+        { cost: 500, value: 5, desc: 'Add a fifth seat' },
+        { cost: 900, value: 6, desc: 'Full cabin refit' }
       ]
     }
   };
@@ -1793,8 +2418,41 @@ function enterGame() {
   const shopPanelEl = document.getElementById('shopPanel');
   const shopListEl = document.getElementById('shopList');
   const shopCreditsAmountEl = document.getElementById('shopCreditsAmount');
+  const refuelButtonEl = document.getElementById('refuelButton');
   let shopButtonVisible = false;
   let shopOpen = false;
+  let refuelButtonVisible = false;
+  let refuelAdInFlight = false;
+
+  function updateRefuelButtonVisibility() {
+    const shouldShow = ship.cooked && !ship.landed && window.__gameStarted && !refuelAdInFlight;
+    if (shouldShow === refuelButtonVisible) return;
+    refuelButtonVisible = shouldShow;
+    refuelButtonEl.style.display = shouldShow ? 'block' : 'none';
+  }
+
+  refuelButtonEl.addEventListener('click', () => {
+    if (refuelAdInFlight || !ship.cooked) return;
+    refuelAdInFlight = true;
+    updateRefuelButtonVisibility();
+    const prevTimeScale = timeScale;
+    window.CrazyGamesHelper.requestRewardedAd(
+      () => { timeScale = 0; if (flightMusicEl) flightMusicEl.pause(); },
+      () => {
+        // Reward: refill the tank in place, no restart/reposition —
+        // the player keeps their passengers and position.
+        ship.fuel = ship.maxFuel;
+        ship.cooked = false;
+        showMsg("⛽ Tank refueled!", 2);
+      },
+      () => {
+        timeScale = prevTimeScale;
+        if (window.__gameStarted) playFlightMusic();
+        refuelAdInFlight = false;
+        updateRefuelButtonVisibility();
+      }
+    );
+  });
 
   function updateShopButtonVisibility() {
     const shouldShow = !!landedStationPlanet && window.__gameStarted && !shopOpen;
@@ -1866,17 +2524,68 @@ function enterGame() {
     if (e.target === shopPanelEl) closeShop(); // click on the dim backdrop closes it
   });
 
+  // ---- Leaderboard panel ----
+  const leaderboardButtonEl = document.getElementById('leaderboardButton');
+  const leaderboardPanelEl = document.getElementById('leaderboardPanel');
+  const leaderboardListEl = document.getElementById('leaderboardList');
+
+  function renderLeaderboardList() {
+    const rows = getCombinedLeaderboardRows();
+    if (rows.length === 0) {
+      leaderboardListEl.innerHTML = `<div class="lbEmpty">🔭 No completed trips yet — deliver a passenger to get on the board!</div>`;
+      return;
+    }
+    const medals = ['🥇', '🥈', '🥉'];
+    leaderboardListEl.innerHTML = rows.map((row, i) => `
+      <div class="lbRow${row.isMe ? ' lbMe' : ''}">
+        <span class="lbRank">${medals[i] || (i + 1)}</span>
+        <span class="lbName">${escapeHtmlLb(row.name)}${row.isMe ? ' (you)' : ''}</span>
+        <span class="lbStats">🚕 ${row.trips} &nbsp; 💰 ${row.credits}</span>
+      </div>`).join('');
+  }
+  function escapeHtmlLb(text) {
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function openLeaderboard() {
+    renderLeaderboardList();
+    leaderboardPanelEl.style.display = 'flex';
+  }
+  function closeLeaderboard() {
+    leaderboardPanelEl.style.display = 'none';
+  }
+  leaderboardButtonEl.addEventListener('click', openLeaderboard);
+  document.getElementById('leaderboardClose').addEventListener('click', closeLeaderboard);
+  leaderboardPanelEl.addEventListener('click', e => {
+    if (e.target === leaderboardPanelEl) closeLeaderboard();
+  });
+
   function resetShip() {
-    ship.x = 0; ship.y = -1250;
-    ship.vx = 0; ship.vy = 0;
-    ship.angle = -Math.PI / 2;
-    ship.landed = false;
-    ship.trail = [];
-    ship.fuel = ship.maxFuel;
-    ship.cooked = false;
-    ship.passengers = [];
-    ship.lastAnnouncedTier = -1;
-    showMsg("🔄 New shift started.", 1.5);
+    const wasCooked = ship.cooked;
+    const doReset = () => {
+      ship.x = 0; ship.y = -1250;
+      ship.vx = 0; ship.vy = 0;
+      ship.angle = -Math.PI / 2;
+      ship.landed = false;
+      ship.trail = [];
+      ship.fuel = ship.maxFuel;
+      ship.cooked = false;
+      ship.passengers = [];
+      ship.lastAnnouncedTier = -1;
+      showMsg("🔄 New shift started.", 1.5);
+    };
+    // Only show a midgame ad when restarting after actually running out of
+    // fuel (a natural "you failed, try again" beat) — not on every manual
+    // R-press, which would be far too frequent for CrazyGames' ad pacing.
+    if (wasCooked) {
+      const prevTimeScale = timeScale;
+      window.CrazyGamesHelper.requestMidgameAd(
+        () => { timeScale = 0; if (flightMusicEl) flightMusicEl.pause(); },
+        () => { timeScale = prevTimeScale; if (window.__gameStarted) playFlightMusic(); doReset(); }
+      );
+    } else {
+      doReset();
+    }
   }
 
   const cam = { x: 0, y: 0, zoom: 0.18 };
@@ -1944,11 +2653,6 @@ function enterGame() {
   canvas.addEventListener('pointerup', endTouch);
   canvas.addEventListener('pointercancel', endTouch);
   canvas.addEventListener('pointerleave', endTouch);
-
-  const startScreen = document.getElementById('startScreen');
-  startScreen.addEventListener('click', () => {
-    startScreen.style.display = 'none';
-  });
 
   const ZOOM_STEP_PER_SEC = 1.6;
   function setupZoomButton(el, direction) {
@@ -2239,9 +2943,18 @@ function enterGame() {
 
     let gx = 0, gy = 0;
     let dragFactor = 0;
+    // Gravitational influence falls off with distance squared, so planets
+    // far beyond this radius contribute a negligible pull (well under
+    // float precision noise). Skipping them keeps the per-frame cost
+    // roughly constant even as procedural generation adds hundreds of
+    // planets across a huge map, instead of scaling with the total
+    // planet count.
+    const GRAVITY_CULL_RADIUS = 60000;
+    const gravityCullSq = GRAVITY_CULL_RADIUS * GRAVITY_CULL_RADIUS;
     for (const p of planets) {
       const dx = p.x - ship.x, dy = p.y - ship.y;
       const distSq = dx * dx + dy * dy;
+      if (distSq > gravityCullSq) continue;
       const dist = Math.sqrt(distSq);
       const minDist = p.r;
       const effDist = Math.max(dist, minDist);
@@ -2266,6 +2979,11 @@ function enterGame() {
 
     ship.x += ship.vx * dt;
     ship.y += ship.vy * dt;
+
+    // Grow the procedural map as the ship physically travels beyond the
+    // eagerly-generated radius (relevant once the "Deep space" tier is
+    // reached — see PROC_MAX_EAGER_RADIUS).
+    ensureGroupsGeneratedNearShip(ship.x, ship.y);
 
     const { planet: nearest, dist } = findNearestPlanet();
     if (dist <= nearest.r + 8) {
@@ -2303,6 +3021,7 @@ function enterGame() {
     }
 
     updateShopButtonVisibility();
+    updateRefuelButtonVisibility();
 
     ship.trail.push({ x: ship.x, y: ship.y });
     if (ship.trail.length > 400) ship.trail.shift();
@@ -2341,6 +3060,13 @@ function enterGame() {
 
     const tier = getDistanceTier();
     const tierLabel = getTierLabel(tier);
+
+    // Once the player's unlocked delivery range reaches past the edge of
+    // everything generated so far, procedurally generate the next ring(s)
+    // of planet groups. Cheap to call every frame — it's a no-op once the
+    // relevant cells already exist (see generatedGroupCells).
+    ensureGroupsGeneratedUpTo(getMaxDistanceForTier(tier));
+
     document.getElementById('hud').innerHTML =
       `🪐 Nearest world: <b>${nearest.name}</b> &nbsp; ${statusHtml}<br>` +
       `💨 Speed: ${speed.toFixed(0)}<br>` +
