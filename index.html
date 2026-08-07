@@ -148,11 +148,6 @@
   /* ---- Refuel-via-ad button: appears centered above the message strip
      only while the ship is cooked (out of fuel) and not yet landed. ---- */
   #refuelButton {
-    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%);
-    z-index: 8; padding: 10px 20px; border-radius: 999px; border: 2px solid rgba(120,220,255,0.6);
-    background: rgba(90,180,255,0.24); color: #dff3ff; font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
-    font-weight: bold; font-size: clamp(12px, 2.2vw, 15px); cursor: pointer;
-    box-shadow: 0 0 16px rgba(120,200,255,0.4); animation: refuelPulse 1.8s ease-in-out infinite;
   }
   @keyframes refuelPulse {
     0%, 100% { box-shadow: 0 0 10px rgba(120,200,255,0.3); }
@@ -162,7 +157,6 @@
      iPad Pro in landscape (1194–1366px), which a width-only breakpoint
      misses entirely — so key this off touch capability OR narrow width. */
   @media (max-width: 900px), (pointer: coarse) {
-    #refuelButton { bottom: calc(26vh + 54px); }
   }
   @media (max-height: 480px) and (pointer: coarse) {
     #refuelButton { bottom: 46px; padding: 8px 14px; }
@@ -718,7 +712,7 @@ window.CrazyGamesHelper = (function() {
 <div id="hud"></div>
 <div id="msg"></div>
 <button id="shopButton" type="button" style="display:none;">🛠️ Upgrades</button>
-<button id="refuelButton" type="button" style="display:none;">📺 Watch ad for full refuel</button>
+<button id="refuelButton" type="button" style="display:none;"></button>
 <div id="shopPanel" style="display:none;">
   <div class="shopInner">
     <div id="shopHeader">
